@@ -181,7 +181,7 @@ footer { color: var(--muted); font-size: 13px; }
 .case-result small { display: block; color: var(--muted); font-size: 13px; }
 .case-status { font-family: var(--cond); text-transform: uppercase; letter-spacing: .12em; font-size: 14px; color: var(--muted); }
 #caseActions { min-height: 38px; }
-.case-tier { font-family: var(--cond); text-transform: uppercase; letter-spacing: .1em; font-size: 12px; color: var(--rar); }
+.case-tier { display: block; font-family: var(--cond); text-transform: uppercase; letter-spacing: .1em; font-size: 12px; color: var(--gold); }
 @media (prefers-reduced-motion: reduce) { .case-card.won { box-shadow: 0 0 0 2px var(--rar); } }
 .gamba-note { margin: 6px 0 0; color: var(--gold); font-size: 14px; }
 body.gb-open { overflow: hidden; }
@@ -860,7 +860,7 @@ body.gb-open { overflow: hidden; }
     caseLast.champ = c;
     MODES.sr.state.champ = c;
     $("caseResult").style.setProperty("--rar", tier.color);
-    $("caseResult").innerHTML = `<img src="${CH.icons[c.id]}" alt=""><div><span class="case-tier">${tier.name}</span><b>${esc(c.name)}</b><small>${esc(c.title)} · ${c.tags.map(esc).join(" / ")}</small></div>`;
+    $("caseResult").innerHTML = `<img src="${CH.icons[c.id]}" alt=""><div><span class="case-tier">${esc(c.region)}</span><b>${esc(c.name)}</b><small>${esc(c.title)} · ${c.tags.map(esc).join(" / ")}</small></div>`;
     $("caseActions").innerHTML = `<button type="button" class="roll small" data-c="again">Open another</button><button type="button" class="ghost" data-c="keep">Play ${esc(c.name)}</button>`;
     $("caseActions").querySelector("button").focus();
     render();

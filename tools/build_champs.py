@@ -3,7 +3,7 @@
 Usage: python tools/build_champs.py [ddragon version]   (default 16.10.1 = patch 26.10)
 Writes site/champs.js. Needs Pillow (python -m pip install --user pillow).
 """
-import base64, io, json, sys, urllib.request
+import base64, io, json, re, sys, urllib.request
 from pathlib import Path
 from PIL import Image
 
@@ -16,6 +16,15 @@ def get(url):
         return r.read()
 
 champs = json.loads(get(f"{CDN}/data/en_US/champion.json"))["data"]
+
+# Lore regions come from Riot's Universe site; champions it lists as unaffiliated show as "Runeterra".
+uni = json.loads(get("https://universe-meeps.leagueoflegends.com/v1/en_us/search/index.json"))
+faction_names = {f["slug"]: f["name"] for f in uni["factions"]}
+norm = lambda t: re.sub(r"[^a-z]", "", t.lower())
+region_of = {}
+for u in uni["champions"]:
+    region = faction_names.get(u["associated-faction-slug"], "Runeterra")
+    region_of[norm(u["name"])] = region_of[norm(u["slug"])] = region
 out, icons, total = [], {}, 0
 for c in sorted(champs.values(), key=lambda c: c["name"]):
     img = Image.open(io.BytesIO(get(f"{CDN}/img/champion/{c['image']['full']}"))).convert("RGB")
@@ -23,7 +32,8 @@ for c in sorted(champs.values(), key=lambda c: c["name"]):
     buf = io.BytesIO(); img.save(buf, "WEBP", quality=82)
     total += buf.tell()
     icons[c["id"]] = "data:image/webp;base64," + base64.b64encode(buf.getvalue()).decode()
-    out.append({"id": c["id"], "name": c["name"], "title": c["title"], "tags": c["tags"], "difficulty": c["info"]["difficulty"]})
+    out.append({"id": c["id"], "name": c["name"], "title": c["title"], "tags": c["tags"], "difficulty": c["info"]["difficulty"],
+                "region": region_of.get(norm(c["name"])) or region_of.get(norm(c["id"]), "Runeterra")})
 
 major, minor = VER.split(".")[:2]
 payload = {"patch": f"{int(major) + 10}.{minor}", "ddragon": VER, "champs": out, "icons": icons}
