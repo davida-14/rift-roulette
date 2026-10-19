@@ -20,6 +20,7 @@ champs = json.loads(get(f"{CDN}/data/en_US/champion.json"))["data"]
 # Lore regions come from Riot's Universe site; champions it lists as unaffiliated show as "Runeterra".
 uni = json.loads(get("https://universe-meeps.leagueoflegends.com/v1/en_us/search/index.json"))
 faction_names = {f["slug"]: f["name"] for f in uni["factions"]}
+faction_names["freljord"] = "Freljord"          # Universe says "The Freljord"; the region is just Freljord
 norm = lambda t: re.sub(r"[^a-z]", "", t.lower())
 region_of = {}
 for u in uni["champions"]:
