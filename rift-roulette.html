@@ -790,14 +790,20 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
   window.RR_EGG = { fire: voltaicEgg, get count() { return eggCount; }, get hasSound() { return VINE_BOOM.startsWith("data:"); } };
 
   // ---------- Champion case (Summoner's Rift) ----------
-  // Every champion has the same chance; the rarity stripe is cosmetic, taken from Riot's difficulty rating.
+  // Pure random: every champion has the same chance. The colour stripe is cosmetic only. Six high-tier
+  // colours are dealt out evenly across the roster in a fixed shuffled order, so each champion keeps its colour.
   const CH = window.CHAMP_DATA;
-  const TIERS = [
-    { max: 3, name: "Mil-Spec", color: "#4b69ff" }, { max: 5, name: "Restricted", color: "#8847ff" },
-    { max: 7, name: "Classified", color: "#d32ce6" }, { max: 9, name: "Covert", color: "#eb4b4b" },
-    { max: 10, name: "Extraordinary", color: "#e4ae39" },
-  ];
-  const tierOf = c => TIERS.find(t => c.difficulty <= t.max);
+  const RARITY_COLORS = ["#eb4b4b", "#d32ce6", "#e4ae39", "#ff7a1a", "#19d47a", "#3ee6ff"];   // crimson, magenta, gold, orange, emerald, ice
+  const colorOf = {};
+  {
+    let seed = 2610;                                                   // fixed seed: same colours every visit
+    const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const ids = CH.champs.map(c => c.id);
+    for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+    ids.forEach((id, i) => colorOf[id] = RARITY_COLORS[i % RARITY_COLORS.length]);
+  }
+  const tierOf = c => ({ color: colorOf[c.id] });
   const CARD_W = 120, STRIP_LEN = 64, WIN_AT = 56;
   let caseSpinning = false, caseRaf = 0, caseAudio = null, caseOpener = null;
   const caseLast = { champ: null };
