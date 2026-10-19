@@ -9,6 +9,7 @@ from pathlib import Path
 page = Path("src/page.html").read_text(encoding="utf-8")
 data = Path("site/items.js").read_text(encoding="utf-8")
 web = page.replace("/*ITEM_DATA*/", data)
+web = web.replace("/*CHAMP_DATA*/", Path("site/champs.js").read_text(encoding="utf-8"))
 
 # Easter-egg sound: assets/vine-boom.(mp3|wav|ogg|m4a) is embedded as a data URI when present.
 MIME = {".mp3": "audio/mpeg", ".wav": "audio/wav", ".ogg": "audio/ogg", ".m4a": "audio/mp4"}
