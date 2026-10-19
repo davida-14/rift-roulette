@@ -1,0 +1,831 @@
+<title>Rift Roulette</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600&display=swap">
+<style>
+/* Layout: a shop-counter column. Controls on top, the rolled 6-slot inventory as the centrepiece, the full item pool (with bans) below. Deliberately one dark "game client" look. */
+:root {
+  --void: #0b1118;      /* page ground, blue-black of the client */
+  --panel: #121b25;     /* raised surfaces */
+  --line: #2a3644;      /* hairlines and slot frames */
+  --text: #e7e2d4;      /* warm parchment text */
+  --muted: #8d97a3;     /* secondary text */
+  --gold: #c8a65a;      /* currency + primary accent */
+  --gold-hi: #f0d68e;
+  --teal: #4fb7b3;      /* hextech secondary, used for locks */
+  --ban: #c4554d;
+  --glow: #18283a;      /* top-of-page radial light */
+  --roll-a: #1f5e64; --roll-b: #133d42; --roll-text: #eafffd;
+  --on-gold: #0b1118;   /* text on gold-filled controls */
+  --card-face: #f7f3ea; --card-ink: #1b1b1f; --card-red: #c0312b;   /* playing cards look the same in every theme */
+  --ad: #e0894a; --ap: #8b8cf0; --tank: #6fae6a; --bruiser: #d0b04c; --support: #5fc3d8;
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --cond: "Barlow Condensed", "Arial Narrow", "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--void);
+  background-image: radial-gradient(1200px 500px at 50% -200px, var(--glow) 0%, transparent 70%);
+  transition: background-color .25s, color .25s;
+  color: var(--text); font-family: var(--body); font-size: 15px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 64px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 28px; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--gold-hi); outline-offset: 2px; }
+
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: clamp(30px, 6vw, 46px); letter-spacing: .04em; margin: 0; line-height: 1;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold) 70%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.sub { color: var(--muted); margin: 6px 0 0; }
+.patch { font-family: var(--cond); font-size: 14px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold);
+  border: 1px solid var(--line); padding: 6px 10px; white-space: nowrap; }
+
+.controls { display: grid; gap: 14px; background: var(--panel); border: 1px solid var(--line); padding: 16px; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.label { font-family: var(--cond); text-transform: uppercase; letter-spacing: .1em; font-size: 13px; color: var(--muted); width: 90px; flex: none; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button { background: transparent; border: 1px solid var(--line); padding: 6px 12px; cursor: pointer; font-family: var(--cond); font-size: 15px; letter-spacing: .04em; }
+.seg button:hover { border-color: var(--gold); }
+.seg button:disabled { opacity: .45; cursor: default; border-color: var(--line); }
+.seg button[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--on-gold); font-weight: 600; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-family: var(--cond); font-size: 15px; }
+.toggle input { accent-color: var(--gold); width: 16px; height: 16px; }
+.roll { margin-left: auto; background: linear-gradient(180deg, var(--roll-a), var(--roll-b)); border: 1px solid var(--teal); color: var(--roll-text);
+  font-family: var(--display); font-weight: 700; font-size: 18px; letter-spacing: .08em; padding: 10px 28px; cursor: pointer; }
+.roll:hover { filter: brightness(1.15); }
+.roll:active { transform: translateY(1px); }
+
+.build-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 16px; }
+h2 { font-family: var(--display); font-size: 20px; letter-spacing: .06em; margin: 0; color: var(--text); }
+.total { font-family: var(--cond); font-size: 18px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.total b { color: var(--gold); font-weight: 600; font-size: 22px; }
+.note { color: var(--ban); font-size: 14px; margin: 0; }
+
+.slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; margin-top: 12px; }
+.slot { display: grid; grid-template-columns: 64px 1fr; gap: 6px 14px; background: var(--panel); border: 1px solid var(--line); padding: 14px; position: relative; min-width: 0; }
+.slot.locked { border-color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); }
+.slot.new { animation: pop .35s ease-out; }
+@keyframes pop { from { transform: scale(.97); filter: brightness(1.6); } to { transform: none; filter: none; } }
+@media (prefers-reduced-motion: reduce) { .slot.new { animation: none; } }
+.slot img { width: 64px; height: 64px; border: 1px solid var(--gold); grid-row: span 2; image-rendering: auto; }
+.slot .kind { font-family: var(--cond); text-transform: uppercase; letter-spacing: .1em; font-size: 12px; color: var(--muted);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding-right: 66px; }
+.slot .name { font-weight: 600; font-size: 17px; line-height: 1.2; margin: 1px 0 2px; }
+.slot .gold { font-family: var(--cond); color: var(--gold); font-variant-numeric: tabular-nums; }
+.slot .detail { grid-column: 1 / -1; font-size: 13.5px; color: var(--muted); min-width: 0; }
+.slot .detail .stats { color: var(--text); }
+.slot .detail .up { color: var(--gold); }
+.chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.chip { font-family: var(--cond); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 0 5px; border: 1px solid currentColor; line-height: 16px; }
+.c-AD { color: var(--ad); } .c-Health { color: var(--tank); } .c-Resistances { color: var(--bruiser); } .c-AP { color: var(--ap); } .c-Tank { color: var(--tank); } .c-Bruiser { color: var(--bruiser); } .c-Support { color: var(--support); }
+.slot .acts { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; }
+.icon-btn { background: var(--void); border: 1px solid var(--line); width: 30px; height: 30px; display: grid; place-items: center; cursor: pointer; color: var(--muted); padding: 0; }
+.icon-btn:hover { color: var(--text); border-color: var(--gold); }
+.icon-btn[aria-pressed="true"] { color: var(--teal); border-color: var(--teal); }
+.icon-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.slot .name { padding-right: 66px; }
+
+.code { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+.code input { flex: 1 1 260px; min-width: 0; background: var(--void); border: 1px solid var(--line); padding: 8px 10px; font-family: var(--cond); letter-spacing: .04em; }
+.ghost { background: transparent; border: 1px solid var(--line); padding: 8px 14px; cursor: pointer; font-family: var(--cond); font-size: 15px; }
+.ghost:hover { border-color: var(--gold); }
+.status { color: var(--teal); font-size: 14px; min-height: 1em; }
+
+.pool-head { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.pool-head input { background: var(--panel); border: 1px solid var(--line); padding: 8px 10px; width: min(100%, 260px); }
+.hint { color: var(--muted); font-size: 14px; margin: 6px 0 0; }
+.pool { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin-top: 12px; }
+.pi { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); padding: 4px 8px 4px 4px; cursor: pointer; text-align: left; min-width: 0; }
+.pi img { width: 36px; height: 36px; flex: none; }
+.pi span { font-size: 13px; line-height: 1.15; min-width: 0; overflow-wrap: anywhere; }
+.pi small { display: block; color: var(--gold); font-family: var(--cond); font-size: 12px; }
+.pi:hover { border-color: var(--gold); }
+.pi.banned { opacity: .45; border-color: var(--ban); }
+.pi.banned img { filter: grayscale(1); }
+.pi.banned span { text-decoration: line-through; text-decoration-color: var(--ban); }
+.pi.inbuild { border-color: var(--gold); }
+.group-title { grid-column: 1 / -1; font-family: var(--cond); text-transform: uppercase; letter-spacing: .1em; font-size: 13px; color: var(--muted); margin-top: 10px; }
+[hidden] { display: none !important; }
+.themes { display: grid; gap: 14px; }
+.theme-group h3 { font-family: var(--cond); text-transform: uppercase; letter-spacing: .1em; font-size: 13px; font-weight: 500; color: var(--muted); margin: 0; }
+.theme-group { display: grid; gap: 10px; }
+.theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.auto-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; background: var(--panel); border: 1px solid var(--line); padding: 12px 16px; }
+.auto-row p { margin: 0; color: var(--muted); font-size: 14px; flex: 1 1 260px; }
+.auto-row .ghost[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--on-gold); font-weight: 600; }
+.tcard { padding: 0; border: 1px solid var(--line); background: transparent; cursor: pointer; text-align: left; display: grid; }
+.tcard:hover { border-color: var(--gold); }
+.tcard[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+/* .tprev gets the theme's own tokens inline, so the preview is drawn in that theme */
+.tprev { background: var(--void); color: var(--text); padding: 12px; display: grid; gap: 10px; }
+.tprev .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.tprev .tname { font-family: var(--display); font-weight: 700; font-size: 16px; letter-spacing: .04em; color: var(--gold); }
+.tprev .tmode { font-family: var(--cond); font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.tprev .sw { display: flex; height: 14px; border: 1px solid var(--line); }
+.tprev .sw i { flex: 1; }
+.tprev .mini { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); padding: 8px; }
+.tprev .mini b { width: 26px; height: 26px; border: 1px solid var(--gold); background: var(--glow); flex: none; }
+.tprev .mini span:not(.chip) { font-size: 13px; font-weight: 600; flex: 1; min-width: 0; }
+.tprev .mini small { display: block; font-family: var(--cond); color: var(--gold); font-weight: 500; }
+.tprev .mini em { font-style: normal; font-family: var(--display); font-size: 11px; font-weight: 700; padding: 4px 8px;
+  background: linear-gradient(180deg, var(--roll-a), var(--roll-b)); color: var(--roll-text); border: 1px solid var(--teal); }
+.tcard .pick { font-family: var(--cond); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 6px 12px; background: var(--panel); }
+.tcard[aria-pressed="true"] .pick { color: var(--gold); }
+footer { color: var(--muted); font-size: 13px; }
+/* Augment picker (ARAM): three card slots, one lights up */
+.augment { display: grid; gap: 12px; }
+.aug-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.aug-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; flex: 1 1 320px; min-width: 0; }
+.aug-card { border: 1px solid var(--line); background: var(--panel); padding: 14px 8px; text-align: center; display: grid; gap: 4px;
+  font-family: var(--display); font-weight: 600; letter-spacing: .06em; color: var(--muted); transition: border-color .12s, color .12s, transform .12s; }
+.aug-card small { font-family: var(--cond); font-weight: 500; letter-spacing: .1em; text-transform: uppercase; font-size: 11px; }
+.aug-card.lit { border-color: var(--gold); color: var(--gold); }
+.aug-card.chosen { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 16%, var(--panel)); color: var(--gold);
+  box-shadow: inset 0 0 0 1px var(--gold); transform: translateY(-3px); }
+@media (prefers-reduced-motion: reduce) { .aug-card { transition: none; } .aug-card.chosen { transform: none; } }
+.aug-result { margin: 0; font-size: 18px; min-height: 1.5em; }
+.aug-result b { font-family: var(--display); color: var(--gold); letter-spacing: .04em; }
+.aug-history { margin: 0; color: var(--muted); font-size: 13px; }
+/* Voltaic Cyclosword easter egg: the flag fades in and out over 0.9 seconds */
+.egg { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; pointer-events: none; opacity: 0; }
+.egg svg, .egg img { width: min(61.5vw, 675px); height: auto; box-shadow: 0 20px 80px rgba(0,0,0,.5); }
+.egg.go { animation: egg .9s ease-in-out; }
+@keyframes egg { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
+/* Gamba: blackjack table in a modal */
+.gamba-btn { margin-left: auto; font-family: var(--display); font-weight: 700; letter-spacing: .08em; border-color: var(--gold); color: var(--gold); }
+.gamba-btn:not([hidden]) + .roll { margin-left: 0; }
+.gamba-note { margin: 6px 0 0; color: var(--gold); font-size: 14px; }
+body.gb-open { overflow: hidden; }
+.gb-overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--void) 72%, transparent);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-bottom, 0px)); }
+.gb-panel { width: min(100%, 560px); max-height: 100%; overflow: auto; background: var(--panel); border: 1px solid var(--gold);
+  box-shadow: 0 20px 60px rgba(0,0,0,.45); padding: 20px; display: grid; gap: 16px; }
+.gb-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.gb-head h2 { font-size: 26px; color: var(--gold); }
+.gb-head p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.gb-table { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--line);
+  background: radial-gradient(120% 100% at 50% 0%, color-mix(in srgb, var(--teal) 16%, var(--void)), var(--void)); }
+.gb-label { font-family: var(--cond); text-transform: uppercase; letter-spacing: .1em; font-size: 13px; color: var(--muted); display: flex; gap: 10px; align-items: baseline; }
+.gb-label b { font-family: var(--display); font-size: 18px; color: var(--text); letter-spacing: .04em; text-transform: none; font-variant-numeric: tabular-nums; }
+.gb-cards { display: flex; flex-wrap: wrap; gap: 8px; min-height: 86px; margin-top: 6px; }
+.card { width: 58px; height: 82px; border-radius: 6px; background: var(--card-face); color: var(--card-ink); border: 1px solid rgba(0,0,0,.25);
+  box-shadow: 0 2px 6px rgba(0,0,0,.3); display: grid; grid-template-rows: auto 1fr auto; padding: 4px 6px; font-family: var(--body); font-weight: 600;
+  animation: deal .28s ease-out both; animation-delay: calc(var(--i) * 60ms); }
+.card.red { color: var(--card-red); }
+.card .cr { font-size: 15px; line-height: 1; }
+.card .cs { font-size: 28px; line-height: 1; place-self: center; }
+.card .flip { transform: rotate(180deg); justify-self: end; }
+.card.back { background: repeating-linear-gradient(45deg, var(--gold) 0 5px, var(--panel) 5px 10px); border: 2px solid var(--gold); }
+@keyframes deal { from { transform: translateY(-14px) rotate(-4deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .card { animation: none; } }
+.gb-msg { margin: 0; font-size: 15px; min-height: 1.4em; }
+.gb-msg.win { color: var(--tank); } .gb-msg.lose { color: var(--ban); } .gb-msg.push { color: var(--gold); }
+.gb-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.gb-actions kbd { font-family: var(--cond); font-size: 11px; color: var(--muted); border: 1px solid var(--line); padding: 0 4px; margin-left: 4px; }
+.gb-actions .ghost:disabled { opacity: .45; cursor: default; }
+.style-pick:hover { background: var(--gold); color: var(--on-gold); }
+.roll.small { margin-left: 0; font-size: 15px; padding: 8px 18px; }
+.tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+.tabs button { background: transparent; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 8px 18px;
+  cursor: pointer; font-family: var(--display); font-weight: 600; font-size: 16px; letter-spacing: .06em; color: var(--muted); }
+.tabs button:hover { color: var(--text); }
+.tabs button[aria-selected="true"] { color: var(--gold); border-bottom-color: var(--gold); }
+@media (max-width: 560px) { .roll { margin-left: 0; width: 100%; } .label { width: 100%; } }
+</style>
+<script>
+/* Colour schemes. Runs before the page draws so a saved theme never flashes the default. */
+(() => {
+  const DARK_CLASSES = { ad: "#e0894a", ap: "#8b8cf0", tank: "#6fae6a", bruiser: "#d0b04c", support: "#5fc3d8" };
+  const LIGHT_CLASSES = { ad: "#b5561b", ap: "#5051c4", tank: "#3d7a39", bruiser: "#8a6d0f", support: "#1f7f93" };
+  const T = (id, name, mode, c) => ({ id, name, mode, vars: { ...(mode === "dark" ? DARK_CLASSES : LIGHT_CLASSES), ...c } });
+  const THEMES = [
+    T("hextech", "Hextech", "dark", { void: "#0b1118", panel: "#121b25", line: "#2a3644", text: "#e7e2d4", muted: "#8d97a3", gold: "#c8a65a", "gold-hi": "#f0d68e", teal: "#4fb7b3", ban: "#c4554d", glow: "#18283a", "roll-a": "#1f5e64", "roll-b": "#133d42", "roll-text": "#eafffd", "on-gold": "#0b1118" }),
+    T("violet", "Midnight Violet", "dark", { void: "#0f0c1a", panel: "#18132a", line: "#2f2747", text: "#ece6f7", muted: "#9a90b3", gold: "#b48cf2", "gold-hi": "#dcc6ff", teal: "#5ad1c4", ban: "#e0607a", glow: "#2a1d4a", "roll-a": "#5b3fa0", "roll-b": "#3a2670", "roll-text": "#f4edff", "on-gold": "#0f0c1a" }),
+    T("ember", "Ember", "dark", { void: "#140f0c", panel: "#1e1712", line: "#3a2c22", text: "#f1e6dc", muted: "#a8978a", gold: "#f08a3c", "gold-hi": "#ffc58f", teal: "#e8c25a", ban: "#e0533f", glow: "#3a2112", "roll-a": "#a3441b", "roll-b": "#6e2a0f", "roll-text": "#fff1e6", "on-gold": "#140f0c" }),
+    T("verdant", "Verdant", "dark", { void: "#0b1410", panel: "#121e18", line: "#26382e", text: "#e3efe6", muted: "#8ea597", gold: "#6fd39b", "gold-hi": "#b8f0cf", teal: "#d8c76a", ban: "#d9675a", glow: "#16352a", "roll-a": "#2b7a55", "roll-b": "#1a4f37", "roll-text": "#ecfff4", "on-gold": "#0b1410" }),
+    T("crimson", "Crimson", "dark", { void: "#140a0d", panel: "#1f1015", line: "#3d2128", text: "#f3e4e6", muted: "#b0959a", gold: "#e34d5b", "gold-hi": "#ffb1b8", teal: "#e8b866", ban: "#ff7a6b", glow: "#3f1520", "roll-a": "#9c2233", "roll-b": "#661523", "roll-text": "#fff0f1", "on-gold": "#140a0d" }),
+    T("onyx", "Onyx", "dark", { void: "#000000", panel: "#101010", line: "#2c2c2c", text: "#f2f2f2", muted: "#8f8f8f", gold: "#f2f2f2", "gold-hi": "#ffffff", teal: "#9ad0ff", ban: "#ff6b6b", glow: "#1c1c1c", "roll-a": "#2e2e2e", "roll-b": "#141414", "roll-text": "#ffffff", "on-gold": "#000000" }),
+    T("daylight", "Daylight", "light", { void: "#f4f5f7", panel: "#ffffff", line: "#d6d9df", text: "#16191d", muted: "#5f6670", gold: "#9a6c12", "gold-hi": "#c99632", teal: "#11806f", ban: "#c43d3d", glow: "#ffffff", "roll-a": "#2a3644", "roll-b": "#141b24", "roll-text": "#ffffff", "on-gold": "#ffffff" }),
+    T("parchment", "Parchment", "light", { void: "#efe8d8", panel: "#faf6ec", line: "#d6c8aa", text: "#2a2219", muted: "#6f6352", gold: "#7e5a14", "gold-hi": "#b8862a", teal: "#1f7a75", ban: "#b23a32", glow: "#fffaf0", "roll-a": "#2a7d78", "roll-b": "#1c5c58", "roll-text": "#ffffff", "on-gold": "#ffffff" }),
+    T("frost", "Frost", "light", { void: "#eaf1f8", panel: "#ffffff", line: "#c9d6e3", text: "#142231", muted: "#566779", gold: "#2563a6", "gold-hi": "#4c8fd6", teal: "#1c8f86", ban: "#c2453d", glow: "#ffffff", "roll-a": "#2f6fb3", "roll-b": "#1f4f86", "roll-text": "#ffffff", "on-gold": "#ffffff" }),
+    T("blossom", "Blossom", "light", { void: "#fbeff2", panel: "#fff8f9", line: "#ebcdd4", text: "#3a1f27", muted: "#85636b", gold: "#b23b5e", "gold-hi": "#e07a96", teal: "#2f8a80", ban: "#b8322f", glow: "#ffffff", "roll-a": "#c24a6b", "roll-b": "#933452", "roll-text": "#ffffff", "on-gold": "#ffffff" }),
+    T("meadow", "Meadow", "light", { void: "#eef3ea", panel: "#fbfdf9", line: "#cfdcc6", text: "#1c2a1d", muted: "#5d6e5c", gold: "#3f7a2e", "gold-hi": "#6da455", teal: "#a0711a", ban: "#b8432f", glow: "#ffffff", "roll-a": "#4b8a37", "roll-b": "#2f6022", "roll-text": "#ffffff", "on-gold": "#ffffff" }),
+    T("lavender", "Lavender", "light", { void: "#f1eef8", panel: "#fcfbff", line: "#d8d0ea", text: "#221b33", muted: "#655c7a", gold: "#6a45b8", "gold-hi": "#9a78e0", teal: "#1f8a8a", ban: "#c0413a", glow: "#ffffff", "roll-a": "#6a45b8", "roll-b": "#4a2f86", "roll-text": "#ffffff", "on-gold": "#ffffff" }),
+  ];
+  const AUTO = { id: "auto", name: "Match Windows", mode: "auto" };
+  const sysDark = window.matchMedia ? matchMedia("(prefers-color-scheme: dark)") : null;
+  const find = id => THEMES.find(t => t.id === id);
+
+  function resolve(id) {
+    if (id === "auto") return find(sysDark && !sysDark.matches ? "daylight" : "hextech");
+    return find(id) || find("hextech");
+  }
+  function apply(id) {
+    const t = resolve(id), root = document.documentElement;
+    for (const [k, v] of Object.entries(t.vars)) root.style.setProperty("--" + k, v);
+    root.style.colorScheme = t.mode;
+    window.RR_THEME.current = id;
+    window.dispatchEvent(new Event("rr-theme"));
+    try { localStorage.setItem("rr.theme", JSON.stringify(id)); } catch {}
+  }
+  let saved = "hextech";
+  try { saved = JSON.parse(localStorage.getItem("rr.theme")) || "hextech"; } catch {}
+  window.RR_THEME = { THEMES, AUTO, apply, resolve, current: saved };
+  if (sysDark) sysDark.addEventListener("change", () => { if (window.RR_THEME.current === "auto") apply("auto"); });
+  apply(saved);
+})();
+</script>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Rift Roulette</h1>
+      <p class="sub">Random item builds for Summoner's Rift and ARAM. Lock what you like, reroll the rest.</p>
+    </div>
+    <div class="patch" id="patchChip">Patch 26.10</div>
+  </header>
+
+  <nav class="tabs" id="modeTabs" role="tablist" aria-label="Game mode">
+    <button type="button" role="tab" id="tabSR" aria-selected="true">Summoner's Rift</button>
+    <button type="button" role="tab" id="tabARAM" aria-selected="false">ARAM</button>
+  </nav>
+
+  <section class="controls" aria-label="Roll settings">
+    <div class="row" id="roleRow"><span class="label">Role</span><div class="seg" id="roleSeg"></div></div>
+    <div class="row"><span class="label">Build style</span><div class="seg" id="styleSeg"></div></div>
+    <div class="row">
+      <span class="label">Options</span>
+      <label class="toggle"><input type="checkbox" id="optBoots" checked> Boots</label>
+      <label class="toggle"><input type="checkbox" id="optStarter" checked> Starter item</label>
+      <button class="ghost gamba-btn" id="gambaBtn" type="button" hidden>Gamba</button>
+      <button class="roll" id="rollBtn" type="button">Roll build</button>
+    </div>
+  </section>
+
+  <section class="augment" id="augment" aria-labelledby="augTitle" hidden>
+    <div class="build-head"><h2 id="augTitle">Augment pick</h2></div>
+    <div class="aug-row">
+      <div class="aug-cards" id="augCards">
+        <div class="aug-card" data-pos="0"><small>Augment</small>Left</div>
+        <div class="aug-card" data-pos="1"><small>Augment</small>Middle</div>
+        <div class="aug-card" data-pos="2"><small>Augment</small>Right</div>
+      </div>
+      <button class="roll" id="augBtn" type="button">Pick my augment</button>
+    </div>
+    <p class="aug-result" id="augResult" role="status">When the augment cards come up in game, press the button and take the one it picks.</p>
+    <p class="aug-history" id="augHistory" hidden></p>
+  </section>
+
+  <section aria-label="Rolled build">
+    <div class="build-head">
+      <h2 id="buildTitle">Your build</h2>
+      <div class="total">Full build cost <b id="total">0</b> gold</div>
+    </div>
+    <p class="note" id="note" hidden></p>
+    <p class="gamba-note" id="gambaNote" hidden></p>
+    <div class="slots" id="slots"></div>
+    <div class="code">
+      <input id="codeInput" aria-label="Build code" spellcheck="false">
+      <button class="ghost" id="copyBtn" type="button">Copy code</button>
+      <button class="ghost" id="loadBtn" type="button">Load code</button>
+      <span class="status" id="status" role="status"></span>
+    </div>
+  </section>
+
+  <section aria-label="Item pool">
+    <div class="pool-head">
+      <h2>Item pool</h2>
+      <input id="search" type="search" placeholder="Search items" aria-label="Search items">
+    </div>
+    <p class="hint" id="poolHint">Click an item to ban it from rolls. Click again to unban.</p>
+    <div class="pool" id="pool"></div>
+  </section>
+
+  <section class="themes" aria-labelledby="themesTitle">
+    <h2 id="themesTitle">Themes</h2>
+    <div class="auto-row">
+      <button type="button" class="ghost" id="autoTheme" data-theme="auto" aria-pressed="false">Match Windows</button>
+      <p>Uses Hextech when Windows is in dark mode and Daylight when it's in light mode.</p>
+    </div>
+    <div class="theme-group">
+      <h3>Dark</h3>
+      <div class="theme-grid" id="darkThemes"></div>
+    </div>
+    <div class="theme-group">
+      <h3>Light</h3>
+      <div class="theme-grid" id="lightThemes"></div>
+    </div>
+  </section>
+
+  <footer id="foot"></footer>
+
+  <div class="egg" id="egg" aria-hidden="true"><svg viewBox="0 0 1200 600" role="img" aria-label="Flag of Croatia"><rect width="1200" height="200" fill="#e30a17"/><rect y="200" width="1200" height="200" fill="#fff"/><rect y="400" width="1200" height="200" fill="#171796"/><defs><clipPath id="hrShield"><path d="M510 226 H690 V370 Q690 440 600 462 Q510 440 510 370 Z"/></clipPath></defs><path d="M510 226 H690 V370 Q690 440 600 462 Q510 440 510 370 Z" fill="#fff"/><g clip-path="url(#hrShield)"><rect x="510" y="226" width="36" height="36" fill="#e30a17"/><rect x="582" y="226" width="36" height="36" fill="#e30a17"/><rect x="654" y="226" width="36" height="36" fill="#e30a17"/><rect x="546" y="262" width="36" height="36" fill="#e30a17"/><rect x="618" y="262" width="36" height="36" fill="#e30a17"/><rect x="510" y="298" width="36" height="36" fill="#e30a17"/><rect x="582" y="298" width="36" height="36" fill="#e30a17"/><rect x="654" y="298" width="36" height="36" fill="#e30a17"/><rect x="546" y="334" width="36" height="36" fill="#e30a17"/><rect x="618" y="334" width="36" height="36" fill="#e30a17"/><rect x="510" y="370" width="36" height="36" fill="#e30a17"/><rect x="582" y="370" width="36" height="36" fill="#e30a17"/><rect x="654" y="370" width="36" height="36" fill="#e30a17"/><rect x="546" y="406" width="36" height="36" fill="#e30a17"/><rect x="618" y="406" width="36" height="36" fill="#e30a17"/></g><path d="M510 226 H690 V370 Q690 440 600 462 Q510 440 510 370 Z" fill="none" stroke="#e30a17" stroke-width="5"/><path d="M512 204 H544 V222 Q544 234 528 238 Q512 234 512 222 Z" fill="#0093dd" stroke="#e30a17" stroke-width="2.5"/><path d="M548 192 H580 V210 Q580 222 564 226 Q548 222 548 210 Z" fill="#171796" stroke="#e30a17" stroke-width="2.5"/><path d="M584 186 H616 V204 Q616 216 600 220 Q584 216 584 204 Z" fill="#0093dd" stroke="#e30a17" stroke-width="2.5"/><path d="M620 192 H652 V210 Q652 222 636 226 Q620 222 620 210 Z" fill="#171796" stroke="#e30a17" stroke-width="2.5"/><path d="M656 204 H688 V222 Q688 234 672 238 Q656 234 656 222 Z" fill="#0093dd" stroke="#e30a17" stroke-width="2.5"/></svg></div>
+
+  <div class="gb-overlay" id="gamba" hidden>
+    <div class="gb-panel" role="dialog" aria-modal="true" aria-labelledby="gbTitle">
+      <div class="gb-head">
+        <div>
+          <h2 id="gbTitle">Gamba</h2>
+          <p>Beat the dealer and you choose your ARAM build type. Lose and the app chooses for you.</p>
+        </div>
+        <button type="button" class="icon-btn" id="gbClose" aria-label="Close Gamba" title="Close (Esc)"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <div class="gb-table">
+        <div><div class="gb-label">Dealer <b id="gbDealerTotal"></b></div><div class="gb-cards" id="gbDealer"></div></div>
+        <div><div class="gb-label">You <b id="gbPlayerTotal"></b></div><div class="gb-cards" id="gbPlayer"></div></div>
+      </div>
+      <p class="gb-msg" id="gbMsg" role="status"></p>
+      <div class="gb-actions" id="gbActions"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/*ITEM_DATA*/
+</script>
+<script>
+(() => {
+  const ICON = {
+    lock: '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="1"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+    dice: '<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>',
+  };
+  const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
+  const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+  const $ = id => document.getElementById(id);
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  // Two randomizers share one screen. Each mode has its own items, build styles and saved state.
+  // Summoner's Rift keeps its original storage keys so existing bans and settings carry over.
+  const MODES = {
+    sr: {
+      name: "Summoner's Rift", data: window.ITEM_DATA, key: "rr.",
+      roles: ["Any", "Top", "Jungle", "Mid", "Bot", "Support"],
+      styles: ["Chaos", "AD", "AP", "Bruiser", "Tank", "Support"],
+      laneStarters: { Top: ["1054", "1055", "1056", "1120"], Mid: ["1056", "1082", "1055", "1054"], Bot: ["1055", "1086", "1083"] },
+    },
+    aram: {
+      name: "ARAM", data: window.ARAM_DATA, key: "rr.aram.",
+      roles: null,
+      styles: ["Chaos", "AD", "AP", "Health", "Resistances", "Support"],
+    },
+  };
+  for (const m of Object.values(MODES)) {
+    m.byId = {};
+    [...m.data.legendary, ...m.data.boots, ...m.data.starter].forEach(i => m.byId[i.id] = i);
+    const k = m.key;
+    m.state = {
+      role: m.roles ? load(k + "role", "Any") : "Any",
+      style: load(k + "style", "Chaos"),
+      boots: load(k + "boots", true),
+      starter: load(k + "starter", true),
+      bans: new Set(load(k + "bans", [])),
+      slots: [], fresh: new Set(), rolled: false,
+    };
+    if (!m.styles.includes(m.state.style)) m.state.style = "Chaos";
+  }
+  let M = MODES[load("rr.mode", "sr")] || MODES.sr;
+  let D = M.data, byId = M.byId, state = M.state;
+  const saveKey = (name, v) => save(M.key + name, v);
+
+  function seg(el, options, key) {
+    el.innerHTML = options.map(o => `<button type="button" data-v="${o}" aria-pressed="${state[key] === o}">${o}</button>`).join("");
+    el.onclick = e => {
+      const b = e.target.closest("button"); if (!b) return;
+      state[key] = b.dataset.v; saveKey(key, state[key]);
+      el.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+      roll();
+    };
+  }
+
+  function starterPool() {
+    let ids;
+    if (!M.roles) ids = D.starter.map(s => s.id);
+    else if (state.role === "Jungle") ids = D.starter.filter(s => s.role === "jungle").map(s => s.id);
+    else if (state.role === "Support") ids = D.starter.filter(s => s.role === "support").map(s => s.id);
+    else ids = M.laneStarters[state.role] || D.starter.filter(s => s.role === "lane").map(s => s.id);
+    return ids.filter(i => !state.bans.has(i));
+  }
+  const bootsPool = () => D.boots.map(b => b.id).filter(i => !state.bans.has(i));
+  function legendaryPool() {
+    return D.legendary.filter(i => !state.bans.has(i.id) && (state.style === "Chaos" || i.classes.includes(state.style))).map(i => i.id);
+  }
+
+  function layout() {
+    const kinds = [];
+    if (state.starter) kinds.push("starter");
+    if (state.boots) kinds.push("boots");
+    const n = state.boots ? 5 : 6;
+    for (let i = 0; i < n; i++) kinds.push("legendary");
+    return kinds;
+  }
+
+  function poolFor(kind) {
+    return kind === "starter" ? starterPool() : kind === "boots" ? bootsPool() : legendaryPool();
+  }
+
+  function rollSlot(idx, notes) {
+    const s = state.slots[idx];
+    const taken = new Set(state.slots.filter((x, j) => j !== idx && x.id).map(x => x.id));
+    let opts = poolFor(s.kind).filter(i => !taken.has(i));
+    if (opts.length > 1 && s.id) opts = opts.filter(i => i !== s.id);
+    if (!opts.length && s.kind === "legendary") {
+      opts = D.legendary.map(i => i.id).filter(i => !taken.has(i) && !state.bans.has(i));
+      notes.add(`Not enough ${state.style} items left after bans, so some slots came from the full pool.`);
+    }
+    if (!opts.length) { notes.add(`Every ${s.kind} item is banned. Unban one to fill that slot.`); s.id = null; return; }
+    s.id = pick(opts);
+    state.fresh.add(idx);
+    if (M === MODES.aram && s.id === "6699") eggPending = true;
+  }
+
+  function roll() {
+    const kinds = layout();
+    const keep = {};
+    state.slots.filter(s => s.locked && s.id).forEach(s => (keep[s.kind] = keep[s.kind] || []).push(s));
+    state.slots = kinds.map(kind => (keep[kind] && keep[kind].length) ? keep[kind].shift() : { kind, id: null, locked: false });
+    const notes = new Set();
+    state.fresh = new Set();
+    state.slots.forEach((s, i) => { if (!s.locked) rollSlot(i, notes); });
+    state.rolled = true;
+    render(notes);
+  }
+
+  function cost(id) {
+    const it = byId[id]; if (!it) return 0;
+    return it.upgrade ? it.upgrade.gold : it.gold;
+  }
+
+  function render(notes = new Set()) {
+    $("slots").innerHTML = state.slots.map((s, i) => {
+      const it = byId[s.id];
+      if (!it) return `<div class="slot"><div></div><div><div class="kind">${s.kind}</div><div class="name">Empty</div></div></div>`;
+      const kindLabel = s.kind === "legendary" ? "Legendary" : s.kind === "boots" ? "Boots" : "Starter";
+      const chips = (it.classes || []).map(c => `<span class="chip c-${c}">${c}</span>`).join("");
+      const up = it.upgrade ? `<div class="up">Upgrades to ${esc(it.upgrade.name)} (${it.upgrade.gold}g total)</div>` : "";
+      const pass = it.passives.length ? `<div>${it.passives.map(esc).join(" · ")}</div>` : "";
+      return `<div class="slot${s.locked ? " locked" : ""}${state.fresh.has(i) ? " new" : ""}">
+        <img src="${D.icons[it.id]}" alt="">
+        <div style="min-width:0"><div class="kind">${kindLabel}${chips ? `<span class="chips">${chips}</span>` : ""}</div>
+          <div class="name">${esc(it.name)}</div><div class="gold">${it.gold} gold</div></div>
+        <div class="detail"><div class="stats">${it.stats.map(esc).join(" · ")}</div>${pass}${up}</div>
+        <div class="acts">
+          <button class="icon-btn" type="button" data-lock="${i}" aria-pressed="${s.locked}" aria-label="${s.locked ? "Unlock" : "Lock"} ${esc(it.name)}" title="${s.locked ? "Unlock" : "Lock"}">${ICON.lock}</button>
+          <button class="icon-btn" type="button" data-reroll="${i}" aria-label="Reroll ${esc(it.name)}" title="Reroll this slot">${ICON.dice}</button>
+        </div></div>`;
+    }).join("");
+    state.fresh = new Set();
+    $("total").textContent = state.slots.reduce((a, s) => a + cost(s.id), 0).toLocaleString();
+    const n = [...notes];
+    $("note").hidden = !n.length; $("note").textContent = n.join(" ");
+    $("codeInput").value = state.slots.map(s => (s.id || "0") + (s.locked ? "!" : "")).join("-");
+    if (eggPending) { eggPending = false; voltaicEgg(); }
+    $("gambaNote").hidden = !state.gambaNote; $("gambaNote").textContent = state.gambaNote || "";
+    renderPool();
+  }
+
+  function renderPool() {
+    const q = $("search").value.trim().toLowerCase();
+    const inBuild = new Set(state.slots.map(s => s.id));
+    const groups = [["Legendary items", D.legendary], ["Boots", D.boots], ["Starters", D.starter]];
+    let html = "";
+    for (const [title, list] of groups) {
+      const items = list.filter(i => !q || i.name.toLowerCase().includes(q));
+      if (!items.length) continue;
+      html += `<div class="group-title">${title} · ${items.length}</div>` + items.map(i =>
+        `<button type="button" class="pi${state.bans.has(i.id) ? " banned" : ""}${inBuild.has(i.id) ? " inbuild" : ""}" data-ban="${i.id}" aria-pressed="${state.bans.has(i.id)}" title="${esc(i.stats.join(", "))}">
+          <img src="${D.icons[i.id]}" alt="" loading="lazy"><span>${esc(i.name)}<small>${i.gold}g</small></span></button>`).join("");
+    }
+    $("pool").innerHTML = html || `<p class="hint">No items match “${esc(q)}”.</p>`;
+    const b = state.bans.size;
+    $("poolHint").textContent = `Click an item to ban it from ${M.name} rolls. Click again to unban.` + (b ? ` ${b} banned.` : "");
+  }
+
+  $("slots").onclick = e => {
+    const lock = e.target.closest("[data-lock]"), rr = e.target.closest("[data-reroll]");
+    if (lock) { const s = state.slots[+lock.dataset.lock]; s.locked = !s.locked; render(); }
+    if (rr) { const i = +rr.dataset.reroll; state.slots[i].locked = false; const notes = new Set(); state.fresh = new Set(); rollSlot(i, notes); render(notes); }
+  };
+  $("pool").onclick = e => {
+    const b = e.target.closest("[data-ban]"); if (!b) return;
+    const id = b.dataset.ban;
+    state.bans.has(id) ? state.bans.delete(id) : state.bans.add(id);
+    saveKey("bans", [...state.bans]); renderPool();
+  };
+  $("search").oninput = renderPool;
+  $("rollBtn").onclick = () => { state.gambaNote = null; roll(); };
+  $("optBoots").onchange = e => { state.boots = e.target.checked; saveKey("boots", state.boots); roll(); };
+  $("optStarter").onchange = e => { state.starter = e.target.checked; saveKey("starter", state.starter); roll(); };
+
+  $("copyBtn").onclick = () => {
+    const v = $("codeInput").value;
+    const done = () => $("status").textContent = "Copied";
+    try { navigator.clipboard.writeText(v).then(done, () => { $("codeInput").select(); $("status").textContent = "Press Ctrl+C to copy"; }); }
+    catch { $("codeInput").select(); $("status").textContent = "Press Ctrl+C to copy"; }
+  };
+  $("loadBtn").onclick = () => {
+    const parts = $("codeInput").value.trim().split("-").filter(Boolean);
+    const slots = parts.map(p => ({ id: p.replace("!", ""), locked: p.endsWith("!") }))
+      .filter(s => byId[s.id])
+      .map(s => ({ ...s, kind: D.boots.some(b => b.id === s.id) ? "boots" : D.starter.some(b => b.id === s.id) ? "starter" : "legendary" }));
+    if (!slots.length) { $("status").textContent = `That code has no ${M.name} items from this patch.`; return; }
+    state.slots = slots;
+    state.boots = slots.some(s => s.kind === "boots"); state.starter = slots.some(s => s.kind === "starter");
+    $("optBoots").checked = state.boots; $("optStarter").checked = state.starter;
+    state.fresh = new Set(slots.map((_, i) => i));
+    render(); $("status").textContent = "Build loaded";
+  };
+
+  // ---------- Gamba: blackjack for the right to choose your ARAM build type ----------
+  // Six-deck shoe, dealer stands on all 17s, blackjack beats 21, hit / stand / double down.
+  // House edge: each hand is secretly fated before the deal. The dealer is fated to win DEALER_EDGE
+  // of hands, and only cards the player can't see are steered (the hole card, the dealer's draws,
+  // and which card comes off the shoe next), so every hand still looks like ordinary blackjack.
+  const DEALER_EDGE = 0.7;
+  const SUITS = ["♠", "♥", "♦", "♣"], RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+  let shoe = [];
+  function newShoe() {
+    shoe = [];
+    for (let d = 0; d < 6; d++) for (const s of SUITS) for (const r of RANKS) shoe.push({ r, s });
+    for (let i = shoe.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shoe[i], shoe[j]] = [shoe[j], shoe[i]]; }
+  }
+  const draw = () => { if (shoe.length < 78) newShoe(); return shoe.pop(); };   // reshuffle at 75% penetration
+  function handValue(hand) {
+    let t = 0, aces = 0;
+    for (const c of hand) { if (c.r === "A") { t += 11; aces++; } else t += "JQK".includes(c.r) ? 10 : +c.r; }
+    while (t > 21 && aces) { t -= 10; aces--; }
+    return { total: t, soft: aces > 0 };
+  }
+  const isBJ = hand => hand.length === 2 && handValue(hand).total === 21;
+  // Take the first card in the shoe that passes `ok` (falls back to a normal draw).
+  function drawWhere(ok) {
+    if (shoe.length < 78) newShoe();
+    for (let i = shoe.length - 1; i >= 0; i--) if (ok(shoe[i])) return shoe.splice(i, 1)[0];
+    return draw();
+  }
+  const putBack = c => shoe.splice(Math.floor(Math.random() * (shoe.length + 1)), 0, c);
+  // Find dealer draws (following the stand-on-17 rule) that end in a total `goal` accepts.
+  // Cards are grouped by value and dead-end states are remembered, so the search is instant.
+  const cardVal = c => c.r === "A" ? 1 : "JQK".includes(c.r) ? 10 : +c.r;
+  function steerDealer(hand, goal) {
+    const pool = {};
+    shoe.forEach((c, i) => (pool[cardVal(c)] = pool[cardVal(c)] || []).push(i));
+    Object.values(pool).forEach(a => a.sort(() => Math.random() - 0.5));   // random suit/face within a value
+    const used = {}, dead = new Set();
+    const best = (hard, ace) => ace && hard + 10 <= 21 ? hard + 10 : hard;
+    function search(hard, ace, n) {
+      const v = best(hard, ace);
+      if (n >= 2 && v >= 17) return goal(v) ? [] : null;
+      const key = hard + "," + ace + "," + (n >= 2);
+      if (dead.has(key)) return null;
+      for (const val of Object.keys(pool).map(Number).sort(() => Math.random() - 0.5)) {
+        const k = used[val] || 0;
+        if (k >= pool[val].length) continue;
+        if (n === 1 && best(hard + val, ace || val === 1) === 21) continue;   // the dealer already peeked: no blackjack now
+        used[val] = k + 1;
+        const rest = search(hard + val, ace || val === 1, n + 1);
+        if (rest) return [pool[val][k], ...rest];
+        used[val] = k;
+      }
+      dead.add(key);
+      return null;
+    }
+    const idx = search(hand.reduce((a, c) => a + cardVal(c), 0), hand.some(c => c.r === "A"), hand.length);
+    if (!idx) return null;
+    const seq = idx.map(i => shoe[i]);
+    idx.slice().sort((x, y) => y - x).forEach(i => shoe.splice(i, 1));
+    return seq;
+  }
+
+  const G = { player: [], dealer: [], phase: "idle", result: null, picked: null, opener: null, dealt: 0 };
+  function gDeal() {
+    G.fate = Math.random() < DEALER_EDGE ? "dealer" : "player";
+    G.player = [draw(), draw()]; G.dealer = [draw(), draw()]; G.phase = "play"; G.result = null; G.picked = null; G.dealt = 0;
+    if (G.fate === "dealer" && isBJ(G.player)) { putBack(G.player[1]); G.player[1] = drawWhere(c => !isBJ([G.player[0], c])); }
+    if (G.fate === "player" && isBJ(G.dealer)) { putBack(G.dealer[1]); G.dealer[1] = drawWhere(c => !isBJ([G.dealer[0], c])); }
+    if (isBJ(G.player) || isBJ(G.dealer)) {                      // dealer peeks: naturals settle at once
+      gFinish(isBJ(G.player) && isBJ(G.dealer) ? "push" : isBJ(G.player) ? "win" : "lose",
+        isBJ(G.player) && isBJ(G.dealer) ? "You both have blackjack." : isBJ(G.player) ? "Blackjack!" : "Dealer has blackjack.");
+    } else gRender();
+  }
+  function gHit() {
+    if (G.phase !== "play") return;
+    G.player.push(drawWhere(c => { const t = handValue([...G.player, c]).total; return G.fate === "player" ? t <= 21 : t !== 21; }));
+    const v = handValue(G.player).total;
+    if (v > 21) gFinish("lose", `Bust with ${v}.`);
+    else if (v === 21) gStand();
+    else gRender();
+  }
+  function gStand() {
+    if (G.phase !== "play") return;
+    const p = handValue(G.player).total;
+    // The hole card was never shown, so it can be re-drawn along with the dealer's hits.
+    const hole = G.dealer.pop(); putBack(hole);
+    // Dealer-fated: beat the player, or at worst tie when they hold 21. Player-fated: bust or fall short.
+    const goals = G.fate === "dealer" ? [d => d <= 21 && d > p, d => d <= 21 && d === p] : [d => d > 21 || d < p];
+    let seq = null;
+    for (const goal of goals) { seq = steerDealer(G.dealer, goal); if (seq) break; }
+    if (seq) G.dealer.push(...seq);
+    else { G.dealer.push(draw()); while (handValue(G.dealer).total < 17) G.dealer.push(draw()); }
+    const d = handValue(G.dealer).total;
+    if (d > 21) gFinish("win", `Dealer busts with ${d}.`);
+    else if (p > d) gFinish("win", `${p} beats ${d}.`);
+    else if (p < d) gFinish("lose", `Dealer's ${d} beats your ${p}.`);
+    else gFinish("push", `Both on ${p}.`);
+  }
+  function gDouble() {
+    if (G.phase !== "play" || G.player.length !== 2) return;
+    G.player.push(drawWhere(c => { const t = handValue([...G.player, c]).total; return G.fate === "player" ? t <= 21 : t !== 21; }));
+    const v = handValue(G.player).total;
+    if (v > 21) gFinish("lose", `Doubled and bust with ${v}.`); else gStand();
+  }
+  function gFinish(result, why) {
+    G.phase = "done"; G.result = result; G.why = why;
+    if (result === "lose") G.picked = pick(M.styles);
+    gRender();
+  }
+
+  const cardHTML = (c, i, hidden) => hidden
+    ? `<div class="card back" style="--i:${i}" aria-label="Face-down card"></div>`
+    : `<div class="card${c.s === "♥" || c.s === "♦" ? " red" : ""}" style="--i:${i}" aria-label="${c.r} of ${({ "♠": "spades", "♥": "hearts", "♦": "diamonds", "♣": "clubs" })[c.s]}"><span class="cr">${c.r}</span><span class="cs">${c.s}</span><span class="cr flip">${c.r}</span></div>`;
+
+  function gRender() {
+    const hideHole = G.phase === "play";
+    $("gbDealer").innerHTML = G.dealer.map((c, i) => cardHTML(c, i, hideHole && i === 1)).join("");
+    $("gbPlayer").innerHTML = G.player.map((c, i) => cardHTML(c, i, false)).join("");
+    const pv = handValue(G.player), dv = handValue(hideHole ? G.dealer.slice(0, 1) : G.dealer);
+    $("gbPlayerTotal").textContent = (pv.soft && pv.total < 21 && G.phase === "play" ? "soft " : "") + pv.total;
+    $("gbDealerTotal").textContent = hideHole ? `${dv.total} showing` : dv.total;
+    const msg = $("gbMsg"), act = $("gbActions");
+    msg.className = "gb-msg" + (G.result ? " " + G.result : "");
+    if (G.phase === "play") {
+      msg.textContent = "Hit, stand or double down.";
+      act.innerHTML = `<button type="button" class="ghost" data-g="hit">Hit <kbd>H</kbd></button>
+        <button type="button" class="ghost" data-g="stand">Stand <kbd>S</kbd></button>
+        <button type="button" class="ghost" data-g="double"${G.player.length === 2 ? "" : " disabled"}>Double <kbd>D</kbd></button>`;
+    } else if (G.result === "win") {
+      msg.textContent = `${G.why} You win. Pick your build type:`;
+      act.innerHTML = M.styles.map(s => `<button type="button" class="ghost style-pick" data-style="${s}">${s}</button>`).join("");
+    } else if (G.result === "lose") {
+      msg.textContent = `${G.why} You lose, so the app picks your build type: ${G.picked}.`;
+      act.innerHTML = `<button type="button" class="roll small" data-style="${G.picked}">Roll ${G.picked} build</button>`;
+    } else {
+      msg.textContent = `${G.why} Push. Nobody wins, so deal again.`;
+      act.innerHTML = `<button type="button" class="roll small" data-g="deal">Deal again</button>`;
+    }
+    const first = act.querySelector("button:not([disabled])"); if (first && G.focusActions) first.focus();
+  }
+
+  function openGamba() {
+    G.opener = document.activeElement; G.focusActions = true;
+    $("gamba").hidden = false; document.body.classList.add("gb-open");
+    gDeal();
+  }
+  function closeGamba() {
+    $("gamba").hidden = true; document.body.classList.remove("gb-open");
+    G.phase = "idle";
+    if (G.opener && G.opener.focus) G.opener.focus();
+  }
+  function applyGamba(style) {
+    const won = G.result === "win";
+    state.style = style; saveKey("style", style);
+    seg($("styleSeg"), M.styles, "style");
+    state.gambaNote = won ? `Gamba: you beat the dealer and chose ${style}.` : `Gamba: the dealer won, so the app chose ${style} for you.`;
+    closeGamba(); roll();
+  }
+  $("gambaBtn").onclick = openGamba;
+  $("gbClose").onclick = closeGamba;
+  $("gamba").addEventListener("click", e => {
+    if (e.target === $("gamba")) { closeGamba(); return; }                 // click on the backdrop
+    const g = e.target.closest("[data-g]"), st = e.target.closest("[data-style]");
+    if (g) ({ hit: gHit, stand: gStand, double: gDouble, deal: gDeal })[g.dataset.g]();
+    else if (st) applyGamba(st.dataset.style);
+  });
+  document.addEventListener("keydown", e => {
+    if ($("gamba").hidden) return;
+    if (e.key === "Escape") { closeGamba(); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (G.phase === "play" && k === "h") gHit();
+    else if (G.phase === "play" && k === "s") gStand();
+    else if (G.phase === "play" && k === "d") gDouble();
+    else if (e.key === "Tab") {                                            // keep focus inside the table
+      const f = [...$("gamba").querySelectorAll("button:not([disabled])")];
+      if (!f.length) return;
+      if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+      else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+    }
+  });
+  window.RR_GAMBA = { G, DEALER_EDGE, handValue, gHit, gStand, gDouble, gDeal, rig: cards => { if (shoe.length < 78 + cards.length) newShoe(); shoe = shoe.concat(cards.slice().reverse()); } };
+
+  // ---------- Easter egg: Voltaic Cyclosword in ARAM ----------
+  let eggPending = false, eggCount = 0, boomAudio = null;
+  const VINE_BOOM = "/*VINE_BOOM*/";          // filled in at build time with the audio file as a data URI
+  function voltaicEgg() {
+    eggCount++;
+    if (VINE_BOOM.startsWith("data:")) {
+      try {
+        boomAudio = boomAudio || new Audio(VINE_BOOM);
+        boomAudio.currentTime = 0; boomAudio.volume = 0.72;   // 10% below the original 0.8
+        const pr = boomAudio.play(); if (pr && pr.catch) pr.catch(() => {});
+      } catch {}
+    }
+    const egg = $("egg");
+    egg.classList.remove("go"); void egg.offsetWidth; egg.classList.add("go");   // restart the fade every time
+  }
+  window.RR_EGG = { fire: voltaicEgg, get count() { return eggCount; }, get hasSound() { return VINE_BOOM.startsWith("data:"); } };
+
+  // ---------- Augment picker (ARAM) ----------
+  const AUG = ["left", "middle", "right"];
+  const augHistory = [];
+  let augBusy = false;
+  function pickAugment() {
+    if (augBusy) return;
+    const cards = [...document.querySelectorAll("#augCards .aug-card")];
+    const final = Math.floor(Math.random() * 3);
+    const show = i => cards.forEach((c, j) => { c.classList.toggle("lit", j === i); c.classList.remove("chosen"); });
+    const land = () => {
+      cards.forEach((c, j) => { c.classList.remove("lit"); c.classList.toggle("chosen", j === final); });
+      $("augResult").innerHTML = `Take the <b>${AUG[final]}</b> augment.`;
+      augHistory.unshift(AUG[final][0].toUpperCase() + AUG[final].slice(1));
+      $("augHistory").hidden = augHistory.length < 2;
+      $("augHistory").textContent = "Earlier picks: " + augHistory.slice(1, 8).join(", ");
+      augBusy = false;
+    };
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { land(); return; }
+    // Short spin: the light hops across the cards, slowing down, then stops on the pick.
+    augBusy = true; $("augResult").textContent = "Picking…";
+    const hops = 6 + final + 3 * Math.floor(Math.random() * 2);   // always ends on `final`
+    let i = 0;
+    const hop = () => {
+      show(i % 3);
+      if (i >= hops) { setTimeout(land, 140); return; }
+      i++; setTimeout(hop, 55 + i * 14);
+    };
+    hop();
+  }
+  $("augBtn").onclick = pickAugment;
+  window.RR_AUG = { history: augHistory, pick: pickAugment };
+
+  // Mode tabs
+  function setMode(id) {
+    M = MODES[id]; D = M.data; byId = M.byId; state = M.state;
+    save("rr.mode", id);
+    for (const [k, btn] of [["sr", $("tabSR")], ["aram", $("tabARAM")]]) {
+      btn.setAttribute("aria-selected", k === id); btn.tabIndex = k === id ? 0 : -1;
+    }
+    $("roleRow").hidden = !M.roles;
+    $("gambaBtn").hidden = id !== "aram";
+    $("augment").hidden = id !== "aram";
+    if (M.roles) seg($("roleSeg"), M.roles, "role");
+    seg($("styleSeg"), M.styles, "style");
+    $("optBoots").checked = state.boots; $("optStarter").checked = state.starter;
+    $("buildTitle").textContent = id === "aram" ? "Your ARAM build" : "Your build";
+    $("status").textContent = "";
+    $("patchChip").textContent = `${M.name} · Patch ${D.patch} · ${D.legendary.length} items`;
+    $("foot").textContent = `Item data from Riot Data Dragon: Summoner's Rift ${MODES.sr.data.ddragon} (patch ${MODES.sr.data.patch}), ARAM ${MODES.aram.data.ddragon} (patch ${MODES.aram.data.patch}). Rift Roulette isn't endorsed by Riot Games.`;
+    if (state.rolled) render(); else roll();
+  }
+  $("tabSR").onclick = () => setMode("sr");
+  $("tabARAM").onclick = () => setMode("aram");
+  $("modeTabs").onkeydown = e => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    const next = M === MODES.sr ? "aram" : "sr";
+    setMode(next); $(next === "sr" ? "tabSR" : "tabARAM").focus();
+  };
+
+  // Themes
+  const TH = window.RR_THEME;
+  function themeCard(t, modeLabel) {
+    const v = TH.resolve(t.id).vars;
+    const style = Object.entries(v).map(([k, val]) => `--${k}:${val}`).join(";");
+    const on = TH.current === t.id;
+    return `<button type="button" class="tcard" data-theme="${t.id}" aria-pressed="${on}">
+      <div class="tprev" style="${style}">
+        <div class="top"><span class="tname">${esc(t.name)}</span><span class="tmode">${modeLabel}</span></div>
+        <div class="sw"><i style="background:${v.void}"></i><i style="background:${v.panel}"></i><i style="background:${v.gold}"></i><i style="background:${v.teal}"></i><i style="background:${v.text}"></i></div>
+        <div class="mini"><b></b><span>Infinity Edge<small>3500 gold</small></span><span class="chip c-AD">AD</span><em>Roll</em></div>
+      </div>
+      <span class="pick">${on ? "Current theme" : "Use this theme"}</span></button>`;
+  }
+  function renderThemes() {
+    $("autoTheme").setAttribute("aria-pressed", TH.current === "auto");
+    $("darkThemes").innerHTML = TH.THEMES.filter(t => t.mode === "dark").map(t => themeCard(t, "Dark")).join("");
+    $("lightThemes").innerHTML = TH.THEMES.filter(t => t.mode === "light").map(t => themeCard(t, "Light")).join("");
+  }
+  document.querySelector(".themes").onclick = e => {
+    const c = e.target.closest("[data-theme]"); if (!c) return;
+    TH.apply(c.dataset.theme); renderThemes();
+  };
+  renderThemes();
+
+  setMode(M === MODES.aram ? "aram" : "sr");
+})();
+</script>

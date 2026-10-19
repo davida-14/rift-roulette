@@ -1,0 +1,37 @@
+{
+  "name": "rift-roulette",
+  "productName": "Rift Roulette",
+  "version": "1.2.0",
+  "description": "Random League of Legends item builds (patch 26.10)",
+  "main": "main.js",
+  "author": "David Fawcett",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "local.riftroulette.app",
+    "productName": "Rift Roulette",
+    "files": [
+      "main.js",
+      "src/**/*",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable",
+      "icon": "build/icon.ico"
+    },
+    "portable": {
+      "artifactName": "RiftRoulette-${version}.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "44.9.0",
+    "electron-builder": "26.15.3"
+  }
+}
