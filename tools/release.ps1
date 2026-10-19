@@ -25,6 +25,13 @@ if ($CreateRepo) {
 git push -u origin main
 if ($LASTEXITCODE -ne 0) { throw "git push failed" }
 
+# Create the release (and its tag) up front, so the build only has to upload files into it.
+& $gh release view "v$version" 2>$null | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    & $gh release create "v$version" --title "Rift Roulette $version" --notes "Installed copies update themselves the next time they open." --target main
+    if ($LASTEXITCODE -ne 0) { throw "Could not create the GitHub release" }
+}
+
 $env:GH_TOKEN = & $gh auth token
 try {
     Push-Location app
