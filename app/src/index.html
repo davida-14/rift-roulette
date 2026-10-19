@@ -182,6 +182,8 @@ footer { color: var(--muted); font-size: 13px; }
 .case-result img { width: 64px; height: 64px; border: 2px solid var(--rar); }
 .case-result b { font-family: var(--display); font-size: 22px; color: var(--rar); letter-spacing: .03em; }
 .case-result small { display: block; color: var(--muted); font-size: 13px; }
+.case-status { font-family: var(--cond); text-transform: uppercase; letter-spacing: .12em; font-size: 14px; color: var(--muted); }
+#caseActions { min-height: 38px; }
 .case-tier { font-family: var(--cond); text-transform: uppercase; letter-spacing: .1em; font-size: 12px; color: var(--rar); }
 @media (prefers-reduced-motion: reduce) { .case-card.won { box-shadow: 0 0 0 2px var(--rar); } }
 .gamba-note { margin: 6px 0 0; color: var(--gold); font-size: 14px; }
@@ -837,8 +839,9 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
     const winner = (forcedId && CH.champs.find(c => c.id === forcedId)) || pick(CH.champs);
     buildStrip(winner);
     caseSpinning = true;
-    $("caseResult").innerHTML = ""; $("caseResult").style.removeProperty("--rar");
-    $("caseActions").innerHTML = `<button type="button" class="ghost" disabled>Opening…</button>`;
+    $("caseResult").style.removeProperty("--rar");
+    $("caseResult").innerHTML = `<span class="case-status">Opening the case…</span>`;
+    $("caseActions").innerHTML = "";
     const win = $("caseWindow").clientWidth;
     const jitter = (Math.random() - 0.5) * (CARD_W - 30);           // don't always stop dead centre
     const target = WIN_AT * CARD_W + 56 - win / 2 + jitter;

@@ -29,7 +29,8 @@ if flag:
     print("embedded", flag.name, f"{flag.stat().st_size // 1024} KB" if n else "(egg markup not found!)")
 Path("rift-roulette.html").write_text(web, encoding="utf-8")
 
-lines = [l for l in web.splitlines() if "fonts.googleapis.com" not in l and "claude:viewport-fit-sides" not in l]
+lines = [l for l in web.splitlines() if "fonts.googleapis.com" not in l and "claude:viewport-fit-sides" not in l
+         and l.strip() != '<meta charset="utf-8">']   # the app document declares its own
 head_end = next(i for i, l in enumerate(lines) if l.startswith("</style>"))
 doc = ["<!doctype html>", '<html lang="en">', "<head>", '<meta charset="utf-8">',
        '<meta name="viewport" content="width=device-width, initial-scale=1">',
