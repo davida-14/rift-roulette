@@ -38,7 +38,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "OWNER_TBD",
+        "owner": "davida-14",
         "repo": "rift-roulette",
         "releaseType": "release"
       }
