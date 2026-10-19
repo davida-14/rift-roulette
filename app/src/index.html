@@ -182,6 +182,15 @@ footer { color: var(--muted); font-size: 13px; }
 .case-result img { width: 64px; height: 64px; border: 2px solid var(--rar); }
 .case-result b { font-family: var(--display); font-size: 22px; color: var(--rar); letter-spacing: .03em; }
 .case-result small { display: block; color: var(--muted); font-size: 13px; }
+/* Your champion: the last case result, kept next to the build */
+.champ-card { display: flex; align-items: center; gap: 14px; margin-top: 10px; padding: 10px 12px; max-width: 560px;
+  background: var(--panel); border: 1px solid var(--rar); box-shadow: 0 0 18px color-mix(in srgb, var(--rar) 22%, transparent); }
+.champ-card img { width: 56px; height: 56px; border: 2px solid var(--rar); flex: none; }
+.cc-text { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.cc-region { font-family: var(--cond); text-transform: uppercase; letter-spacing: .1em; font-size: 12px; color: var(--gold); }
+.cc-text b { font-family: var(--display); font-size: 20px; letter-spacing: .03em; line-height: 1.15; }
+.cc-text small { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.cc-acts { display: flex; gap: 6px; flex: none; }
 .case-status { font-family: var(--cond); text-transform: uppercase; letter-spacing: .12em; font-size: 14px; color: var(--muted); }
 #caseActions { min-height: 38px; }
 .case-tier { display: block; font-family: var(--cond); text-transform: uppercase; letter-spacing: .1em; font-size: 12px; color: var(--gold); }
@@ -320,7 +329,14 @@ body.gb-open { overflow: hidden; }
     </div>
     <p class="note" id="note" hidden></p>
     <p class="gamba-note" id="gambaNote" hidden></p>
-    <p class="gamba-note" id="champNote" hidden></p>
+    <div class="champ-card" id="champCard" hidden>
+      <img id="ccImg" alt="">
+      <div class="cc-text"><span class="cc-region" id="ccRegion"></span><b id="ccName"></b><small id="ccTitle"></small></div>
+      <div class="cc-acts">
+        <button type="button" class="icon-btn" id="ccReroll" title="Open the case again" aria-label="Open the case again"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg></button>
+        <button type="button" class="icon-btn" id="ccClear" title="Clear champion" aria-label="Clear champion"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+    </div>
     <div class="slots" id="slots"></div>
     <div class="code">
       <input id="codeInput" aria-label="Build code" spellcheck="false">
@@ -538,8 +554,15 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
     $("codeInput").value = state.slots.map(s => (s.id || "0") + (s.locked ? "!" : "")).join("-");
     if (eggPending) { eggPending = false; voltaicEgg(); }
     $("gambaNote").hidden = !state.gambaNote; $("gambaNote").textContent = state.gambaNote || "";
-    $("champNote").hidden = !state.champ;
-    if (state.champ) $("champNote").textContent = `Champion from the case: ${state.champ.name}, ${state.champ.title}.`;
+    const ch = state.champ;
+    $("champCard").hidden = !ch;
+    if (ch) {
+      $("champCard").style.setProperty("--rar", tierOf(ch).color);
+      $("ccImg").src = CH.icons[ch.id];
+      $("ccRegion").textContent = `Your champion · ${ch.region}`;
+      $("ccName").textContent = ch.name;
+      $("ccTitle").textContent = `${ch.title} · ${ch.tags.join(" / ")}`;
+    }
     renderPool();
   }
 
@@ -872,7 +895,7 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
     $("caseStrip").children[WIN_AT].classList.add("won");
     caseSound("reveal");
     caseLast.champ = c;
-    MODES.sr.state.champ = c;
+    MODES.sr.state.champ = c; save("rr.champ", c.id);
     $("caseResult").style.setProperty("--rar", tier.color);
     $("caseResult").innerHTML = `<img src="${CH.icons[c.id]}" alt=""><div><span class="case-tier">${esc(c.region)}</span><b>${esc(c.name)}</b><small>${esc(c.title)} · ${c.tags.map(esc).join(" / ")}</small></div>`;
     $("caseActions").innerHTML = `<button type="button" class="roll small" data-c="again">Open another</button><button type="button" class="ghost" data-c="keep">Play ${esc(c.name)}</button>`;
@@ -893,6 +916,9 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
     if (caseOpener && caseOpener.focus) caseOpener.focus();
   }
   $("caseBtn").onclick = openCase;
+  $("ccReroll").onclick = openCase;
+  $("ccClear").onclick = () => { MODES.sr.state.champ = null; try { localStorage.removeItem("rr.champ"); } catch {} render(); };
+  { const saved = load("rr.champ", null); MODES.sr.state.champ = CH.champs.find(c => c.id === saved) || null; }   // remembered across visits
   $("caseClose").onclick = closeCase;
   $("caseModal").addEventListener("click", e => {
     if (e.target === $("caseModal")) { closeCase(); return; }
