@@ -1,7 +1,7 @@
 {
   "name": "rift-roulette",
   "productName": "Rift Roulette",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "Random League of Legends item builds (patch 26.10)",
   "main": "main.js",
   "author": "David Fawcett",
