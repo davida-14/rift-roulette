@@ -666,7 +666,7 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
     window.riftDesktop.overlayShortcut().then(key => {
       if (!key) return;
       $("overlayHint").hidden = false;
-      $("overlayHint").textContent = `Press ${key} anywhere, even in League, to show this build in a small overlay. League needs to be in Borderless or Windowed mode.`;
+      $("overlayHint").textContent = `Press ${key} anywhere, even in League, to show this build in a small overlay, and Ctrl+Shift+M to move it. League needs to be in Borderless or Windowed mode.`;
     }).catch(() => {});
   }
 

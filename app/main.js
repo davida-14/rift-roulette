@@ -29,27 +29,74 @@ function createWindow() {
 // A small see-through window in the top-right corner showing the current build. It never touches
 // League: it's an ordinary always-on-top window that ignores the mouse and never takes focus, so
 // it shows over League in Borderless or Windowed mode (not exclusive Fullscreen).
-const OVERLAY_KEY = "CommandOrControl+Shift+B";
-let overlay = null, lastBuild = null;
-function createOverlay() {
+const OVERLAY_KEY = "CommandOrControl+Shift+B", MOVE_KEY = "CommandOrControl+Shift+M";
+const OVERLAY_W = 300, OVERLAY_H = 470;
+let overlay = null, lastBuild = null, moveMode = false;
+
+// Where the overlay sits is remembered in the app's data folder. A saved spot that no longer
+// lands on any screen (say a monitor was unplugged) falls back to the top-right corner.
+const posFile = () => path.join(app.getPath("userData"), "overlay-position.json");
+function overlayStartPosition() {
+  try {
+    const p = JSON.parse(fs.readFileSync(posFile(), "utf8"));
+    const onScreen = screen.getAllDisplays().some(d => { const a = d.workArea;
+      return p.x + 40 > a.x && p.x + 40 < a.x + a.width && p.y + 20 > a.y && p.y + 20 < a.y + a.height; });
+    if (onScreen && Number.isFinite(p.x) && Number.isFinite(p.y)) return p;
+  } catch {}
   const { workArea } = screen.getPrimaryDisplay();
+  return { x: workArea.x + workArea.width - OVERLAY_W - 16, y: workArea.y + 90 };
+}
+function saveOverlayPosition() {
+  if (!overlay) return;
+  const [x, y] = overlay.getPosition();
+  try { fs.writeFileSync(posFile(), JSON.stringify({ x, y })); } catch {}
+}
+
+function createOverlay() {
+  const start = overlayStartPosition();
   overlay = new BrowserWindow({
-    width: 300, height: 470, x: workArea.x + workArea.width - 316, y: workArea.y + 90,
+    width: OVERLAY_W, height: OVERLAY_H, x: start.x, y: start.y,
     frame: false, transparent: true, resizable: false, movable: false, focusable: false,
     skipTaskbar: true, alwaysOnTop: true, hasShadow: false, show: false, backgroundColor: "#00000000",
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: path.join(__dirname, "overlay-preload.js") },
   });
   overlay.setAlwaysOnTop(true, "screen-saver");
   overlay.setIgnoreMouseEvents(true);
-  overlay.webContents.on("did-finish-load", () => { if (lastBuild) overlay.webContents.send("build", lastBuild); });
+  overlay.webContents.on("did-finish-load", () => {          // catch up a freshly opened overlay
+    if (lastBuild) overlay.webContents.send("build", lastBuild);
+    overlay.webContents.send("move-mode", moveMode);
+  });
   overlay.loadFile(path.join(__dirname, "src", "overlay.html"));
   overlay.on("closed", () => { overlay = null; });
 }
 function toggleOverlay() {
   if (!overlay) createOverlay();
-  if (overlay.isVisible()) overlay.hide(); else overlay.showInactive();
+  if (overlay.isVisible()) { setMoveMode(false); overlay.hide(); } else overlay.showInactive();
 }
+// Move mode: the overlay takes the mouse so it can be dragged, then goes back to click-through
+// and remembers where it was left.
+function setMoveMode(on) {
+  if (on === moveMode) return;
+  moveMode = on;
+  if (overlay) {
+    overlay.setIgnoreMouseEvents(!on);
+    overlay.webContents.send("move-mode", on);
+    if (!on) saveOverlayPosition();
+  }
+}
+function toggleMoveMode() {
+  if (!overlay) createOverlay();
+  if (!overlay.isVisible()) overlay.showInactive();
+  setMoveMode(!moveMode);
+}
+ipcMain.on("overlay-drag", (_e, d) => {
+  if (!overlay || !moveMode || !Number.isFinite(d.dx) || !Number.isFinite(d.dy)) return;
+  const [x, y] = overlay.getPosition();
+  overlay.setPosition(Math.round(x + d.dx), Math.round(y + d.dy));
+});
+ipcMain.on("overlay-done", () => setMoveMode(false));
 global.riftToggleOverlay = toggleOverlay;   // reachable from a debugger for testing; not exposed to any page
+global.riftToggleMoveMode = toggleMoveMode;
 ipcMain.on("build", (_e, build) => {
   lastBuild = build;
   if (overlay) overlay.webContents.send("build", build);
@@ -65,11 +112,13 @@ function watchOverlayKeys() {
     keyState = koffi.load("user32.dll").func("short __stdcall GetAsyncKeyState(int vKey)");
   } catch { return false; }
   const down = vk => (keyState(vk) & 0x8000) !== 0;
-  let wasDown = false;
+  let wasB = false, wasM = false;
   keyWatch = setInterval(() => {
-    const now = down(0x11) && down(0x10) && down(0x42);   // Ctrl, Shift, B
-    if (now && !wasDown) toggleOverlay();
-    wasDown = now;
+    const mods = down(0x11) && down(0x10);                  // Ctrl + Shift
+    const b = mods && down(0x42), m = mods && down(0x4D);   // ...+ B (show/hide), + M (move)
+    if (b && !wasB) toggleOverlay();
+    if (m && !wasM) toggleMoveMode();
+    wasB = b; wasM = m;
   }, 40);
   return true;
 }
@@ -191,7 +240,7 @@ function startWithUpdateCheck() {
 Menu.setApplicationMenu(null);
 app.whenReady().then(() => {
   // Key-state check works even while League is focused; a normal hotkey is only the fallback.
-  if (!watchOverlayKeys()) globalShortcut.register(OVERLAY_KEY, toggleOverlay);
+  if (!watchOverlayKeys()) { globalShortcut.register(OVERLAY_KEY, toggleOverlay); globalShortcut.register(MOVE_KEY, toggleMoveMode); }
   startWithUpdateCheck();
 });
 app.on("will-quit", () => globalShortcut.unregisterAll());

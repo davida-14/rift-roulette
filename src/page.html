@@ -663,7 +663,7 @@ body.gb-open { overflow: hidden; }
     window.riftDesktop.overlayShortcut().then(key => {
       if (!key) return;
       $("overlayHint").hidden = false;
-      $("overlayHint").textContent = `Press ${key} anywhere, even in League, to show this build in a small overlay. League needs to be in Borderless or Windowed mode.`;
+      $("overlayHint").textContent = `Press ${key} anywhere, even in League, to show this build in a small overlay, and Ctrl+Shift+M to move it. League needs to be in Borderless or Windowed mode.`;
     }).catch(() => {});
   }
 

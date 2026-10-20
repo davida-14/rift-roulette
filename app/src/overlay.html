@@ -25,9 +25,18 @@ body { font: 14px "Barlow", "Segoe UI", sans-serif; color: var(--text); padding:
 .foot { display: flex; justify-content: space-between; font: 500 12px "Barlow Condensed", "Segoe UI", sans-serif; color: var(--muted); border-top: 1px solid var(--line); padding-top: 6px; }
 .foot b { color: var(--gold); font-variant-numeric: tabular-nums; }
 .empty { color: var(--muted); font-size: 13px; }
+/* Move mode: dashed outline, grab cursor, a banner with Done */
+.mover { display: none; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; padding: 6px 8px;
+  background: var(--gold); color: #111; font: 600 12px "Barlow Condensed", "Segoe UI", sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.mover button { font: 700 12px "Barlow Condensed", "Segoe UI", sans-serif; letter-spacing: .06em; text-transform: uppercase;
+  background: #111; color: var(--gold); border: 0; padding: 4px 10px; cursor: pointer; }
+body.moving .mover { display: flex; }
+body.moving .card { outline: 2px dashed var(--gold); outline-offset: 2px; cursor: move; }
+body.moving { cursor: move; }
 </style>
 </head>
 <body>
+<div class="mover" id="mover"><span>Drag me anywhere</span><button type="button" id="done">Done</button></div>
 <div class="card" id="card"><div class="empty">Roll a build in Rift Roulette and it shows up here.</div></div>
 <script>
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -38,9 +47,29 @@ function show(b) {
   document.getElementById("card").innerHTML =
     `<div class="head"><span class="title">Rift Roulette</span><span class="mode">${esc(b.mode)} · ${esc(b.style)}</span></div>`
     + champ + rows
-    + `<div class="foot"><span>Ctrl+Shift+B to hide</span><span>Total <b>${b.total}</b> gold</span></div>`;
+    + `<div class="foot"><span>Ctrl+Shift+B hide · M move</span><span>Total <b>${b.total}</b> gold</span></div>`;
 }
 if (window.overlayApi) window.overlayApi.onBuild(show);
+
+// Move mode: drag anywhere on the overlay; each step sends how far the pointer moved on screen.
+let dragging = null;
+function setMoving(on) { document.body.classList.toggle("moving", on); if (!on) dragging = null; }
+if (window.overlayApi) window.overlayApi.onMoveMode(setMoving);
+document.addEventListener("pointerdown", e => {
+  if (!document.body.classList.contains("moving") || (e.target.closest && e.target.closest("#done"))) return;
+  dragging = { x: e.screenX, y: e.screenY };
+  try { document.body.setPointerCapture(e.pointerId); } catch {}
+});
+document.addEventListener("pointermove", e => {
+  if (!dragging) return;
+  const dx = e.screenX - dragging.x, dy = e.screenY - dragging.y;
+  if (!dx && !dy) return;
+  dragging = { x: e.screenX, y: e.screenY };
+  window.overlayApi.drag(dx, dy);
+});
+document.addEventListener("pointerup", () => { dragging = null; });
+document.getElementById("done").onclick = () => window.overlayApi && window.overlayApi.done();
+window.RR_OVERLAY_MOVING = setMoving;   // lets a test switch the look on
 window.RR_OVERLAY_SHOW = show;   // lets a test feed in a build
 </script>
 </body>
