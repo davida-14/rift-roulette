@@ -34,6 +34,8 @@ for c in sorted(champs.values(), key=lambda c: c["name"]):
     total += buf.tell()
     icons[c["id"]] = "data:image/webp;base64," + base64.b64encode(buf.getvalue()).decode()
     out.append({"id": c["id"], "name": c["name"], "title": c["title"], "tags": c["tags"], "difficulty": c["info"]["difficulty"],
+                "attack": c["info"]["attack"], "magic": c["info"]["magic"], "defense": c["info"]["defense"],
+                "partype": c["partype"], "range": c["stats"]["attackrange"],
                 "region": region_of.get(norm(c["name"])) or region_of.get(norm(c["id"]), "Runeterra")})
 
 major, minor = VER.split(".")[:2]

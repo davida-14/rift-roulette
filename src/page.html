@@ -163,6 +163,8 @@ footer { color: var(--muted); font-size: 13px; }
 .gamba-btn:not([hidden]) ~ .gamba-btn { margin-left: 0; }
 /* Champion case: CS-style reel. Rarity colours are the familiar case-opening tiers, the same in every theme. */
 .case-panel { width: min(100%, 780px); }
+.troll-panel { width: min(100%, 480px); }
+.troll-note { color: var(--ban); }
 .case-window { position: relative; height: 156px; overflow: hidden; border: 1px solid var(--line); background: var(--void);
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
 .case-strip { position: absolute; top: 10px; left: 0; display: flex; will-change: transform; }
@@ -324,6 +326,7 @@ body.gb-open { overflow: hidden; }
     </div>
     <p class="note" id="note" hidden></p>
     <p class="gamba-note" id="gambaNote" hidden></p>
+    <p class="gamba-note troll-note" id="trollNote" hidden></p>
     <div class="champ-card" id="champCard" hidden>
       <img id="ccImg" alt="">
       <div class="cc-text"><span class="cc-region" id="ccRegion"></span><b id="ccName"></b><small id="ccTitle"></small></div>
@@ -369,6 +372,22 @@ body.gb-open { overflow: hidden; }
   <footer id="foot"></footer>
 
   <div class="egg" id="egg" aria-hidden="true"><svg viewBox="0 0 1200 600" role="img" aria-label="Flag of Croatia"><rect width="1200" height="200" fill="#e30a17"/><rect y="200" width="1200" height="200" fill="#fff"/><rect y="400" width="1200" height="200" fill="#171796"/><defs><clipPath id="hrShield"><path d="M510 226 H690 V370 Q690 440 600 462 Q510 440 510 370 Z"/></clipPath></defs><path d="M510 226 H690 V370 Q690 440 600 462 Q510 440 510 370 Z" fill="#fff"/><g clip-path="url(#hrShield)"><rect x="510" y="226" width="36" height="36" fill="#e30a17"/><rect x="582" y="226" width="36" height="36" fill="#e30a17"/><rect x="654" y="226" width="36" height="36" fill="#e30a17"/><rect x="546" y="262" width="36" height="36" fill="#e30a17"/><rect x="618" y="262" width="36" height="36" fill="#e30a17"/><rect x="510" y="298" width="36" height="36" fill="#e30a17"/><rect x="582" y="298" width="36" height="36" fill="#e30a17"/><rect x="654" y="298" width="36" height="36" fill="#e30a17"/><rect x="546" y="334" width="36" height="36" fill="#e30a17"/><rect x="618" y="334" width="36" height="36" fill="#e30a17"/><rect x="510" y="370" width="36" height="36" fill="#e30a17"/><rect x="582" y="370" width="36" height="36" fill="#e30a17"/><rect x="654" y="370" width="36" height="36" fill="#e30a17"/><rect x="546" y="406" width="36" height="36" fill="#e30a17"/><rect x="618" y="406" width="36" height="36" fill="#e30a17"/></g><path d="M510 226 H690 V370 Q690 440 600 462 Q510 440 510 370 Z" fill="none" stroke="#e30a17" stroke-width="5"/><path d="M512 204 H544 V222 Q544 234 528 238 Q512 234 512 222 Z" fill="#0093dd" stroke="#e30a17" stroke-width="2.5"/><path d="M548 192 H580 V210 Q580 222 564 226 Q548 222 548 210 Z" fill="#171796" stroke="#e30a17" stroke-width="2.5"/><path d="M584 186 H616 V204 Q616 216 600 220 Q584 216 584 204 Z" fill="#0093dd" stroke="#e30a17" stroke-width="2.5"/><path d="M620 192 H652 V210 Q652 222 636 226 Q620 222 620 210 Z" fill="#171796" stroke="#e30a17" stroke-width="2.5"/><path d="M656 204 H688 V222 Q688 234 672 238 Q656 234 656 222 Z" fill="#0093dd" stroke="#e30a17" stroke-width="2.5"/></svg></div>
+
+  <div class="gb-overlay" id="trollPrompt" hidden>
+    <div class="gb-panel troll-panel" role="dialog" aria-modal="true" aria-labelledby="tpTitle">
+      <div class="gb-head">
+        <div>
+          <h2 id="tpTitle">Pick a victim</h2>
+          <p>Full Troll works best against a specific champion. Open the case to get one, and the build is rolled to ruin them.</p>
+        </div>
+        <button type="button" class="icon-btn" id="tpClose" aria-label="Close" title="Close (Esc)"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <div class="gb-actions">
+        <button type="button" class="roll small" id="tpCase">Open the case</button>
+        <button type="button" class="ghost" id="tpAnyway">Troll without a champion</button>
+      </div>
+    </div>
+  </div>
 
   <div class="gb-overlay" id="caseModal" hidden>
     <div class="gb-panel case-panel" role="dialog" aria-modal="true" aria-labelledby="caseTitle">
@@ -426,13 +445,13 @@ body.gb-open { overflow: hidden; }
     sr: {
       name: "Summoner's Rift", data: window.ITEM_DATA, key: "rr.",
       roles: ["Any", "Top", "Jungle", "Mid", "Bot", "Support"],
-      styles: ["Chaos", "AD", "AP", "Bruiser", "Tank", "Support"],
+      styles: ["Chaos", "AD", "AP", "Bruiser", "Tank", "Support", "Full Troll"],
       laneStarters: { Top: ["1054", "1055", "1056", "1120"], Mid: ["1056", "1082", "1055", "1054"], Bot: ["1055", "1086", "1083"] },
     },
     aram: {
       name: "ARAM", data: window.ARAM_DATA, key: "rr.aram.",
       roles: null,
-      styles: ["Chaos", "AD", "AP", "Health", "Resistances", "Support"],
+      styles: ["Chaos", "AD", "AP", "Health", "Resistances", "Support", "Full Troll"],
     },
   };
   for (const m of Object.values(MODES)) {
@@ -464,6 +483,7 @@ body.gb-open { overflow: hidden; }
   }
 
   function starterPool() {
+    if (state.style === TROLL) return trollStarterPool();
     let ids;
     if (!M.roles) ids = D.starter.map(s => s.id);
     else if (state.role === "Jungle") ids = D.starter.filter(s => s.role === "jungle").map(s => s.id);
@@ -471,10 +491,74 @@ body.gb-open { overflow: hidden; }
     else ids = M.laneStarters[state.role] || D.starter.filter(s => s.role === "lane").map(s => s.id);
     return ids.filter(i => !state.bans.has(i));
   }
-  const bootsPool = () => D.boots.map(b => b.id).filter(i => !state.bans.has(i));
+  const bootsPool = () => state.style === TROLL ? trollBootsPool() : D.boots.map(b => b.id).filter(i => !state.bans.has(i));
   function legendaryPool() {
+    if (state.style === TROLL) return trollLegendaryPool();
     return D.legendary.filter(i => !state.bans.has(i.id) && (state.style === "Chaos" || i.classes.includes(state.style))).map(i => i.id);
   }
+
+  // ---------- Full Troll: the most anti-synergy build we can find ----------
+  // With a champion: every item is scored against what that champion needs (damage type, resource,
+  // range, role) and the build is drawn from the worst dozen. Without one: pure items from clashing camps.
+  const TROLL = "Full Troll";
+  let currentChamp = null, trollAnyway = false, pendingTroll = false;
+  function feats(it) {
+    const has = re => it.stats.some(x => re.test(x));
+    return { ad: has(/^\d+ Attack Damage$/), ap: has(/^\d+ Ability Power$/), as: has(/Attack Speed$/), crit: has(/Critical Strike Chance$/),
+      leth: has(/Lethality$/), mpen: has(/Magic Penetration$/), hp: has(/^\d+ Health$/), armor: has(/^\d+ Armor$/), mr: has(/^\d+ Magic Resist$/),
+      mana: has(/^\d+ Mana$/), hsp: has(/Heal and Shield Power$/), mregen: has(/Base Mana Regen$/) };
+  }
+  const profile = c => ({ ap: c.magic > c.attack, tank: c.tags.includes("Tank"), supp: c.tags.includes("Support"),
+    marks: c.tags.includes("Marksman"), ranged: c.range > 300, manaless: c.partype !== "Mana" });
+  function trollScore(it, c) {
+    const f = feats(it), pr = profile(c), why = []; let sc = 0;
+    if (pr.ap) { if (f.ad || f.crit || f.as || f.leth) { sc += 3; why.push("AD and crit on an AP champion"); } if (f.ap) sc -= 6; }
+    else { if (f.ap || f.mpen) { sc += 3; why.push("AP on an AD champion"); } if (f.ad || f.crit) sc -= 6; }
+    if (pr.tank) { if (f.crit || f.leth) { sc += 2; why.push("glass-cannon stats on a tank"); } if (f.hp || f.armor || f.mr) sc -= 3; }
+    if (pr.manaless && f.mana) { sc += 3; why.push(`mana on a champion who uses ${c.partype && c.partype !== "None" ? c.partype.toLowerCase() : "no resource"}`); }
+    if (!pr.supp && (f.hsp || f.mregen)) { sc += 2; why.push("support stats on a carry"); }
+    if (pr.ranged && /Hydra/.test(it.name)) { sc += 3; why.push("a melee Hydra on a ranged champion"); }
+    if (!pr.ranged && it.name === "Runaan's Hurricane") { sc += 4; why.push("Runaan's on a melee champion (it only works at range)"); }
+    return { sc, why };
+  }
+  function trollLegendaryPool() {
+    const items = D.legendary.filter(i => !state.bans.has(i.id));
+    if (!currentChamp) {
+      return items.filter(i => { const f = feats(i);
+        return [f.ad || f.crit, f.ap, (f.hp || f.armor || f.mr) && !f.ad && !f.ap, f.hsp || f.mregen].filter(Boolean).length === 1; }).map(i => i.id);
+    }
+    return items.map(i => ({ id: i.id, sc: trollScore(i, currentChamp).sc + Math.random() * 1.5 }))
+      .sort((a, b) => b.sc - a.sc).slice(0, 12).map(x => x.id);
+  }
+  function trollBootsPool() {
+    const c = currentChamp, pr = c && profile(c);
+    // Attack-speed boots on mages, magic-pen boots on attackers, no defensive boots for tanks.
+    const ids = !c ? ["3006", "3020"] : pr.ap ? ["3006"] : pr.tank ? ["3006", "3020"] : ["3020"];
+    const ok = ids.filter(i => !state.bans.has(i) && D.boots.some(b => b.id === i));
+    return ok.length ? ok : D.boots.map(b => b.id).filter(i => !state.bans.has(i));
+  }
+  function trollStarterPool() {
+    const c = currentChamp, ap = c && profile(c).ap;
+    let ids;
+    if (!M.roles) ids = !c ? D.starter.map(x => x.id) : ap ? ["3177", "3184"] : ["3112"];        // ARAM: wrong Guardian's item
+    else if (state.role === "Jungle") ids = !c ? ["1055", "1056"] : ap ? ["1055"] : ["1056"];   // jungler with a lane item
+    else ids = D.starter.filter(x => x.role === "jungle").map(x => x.id);                        // laner with a jungle pet
+    const ok = ids.filter(i => !state.bans.has(i));
+    return ok.length ? ok : D.starter.map(x => x.id).filter(i => !state.bans.has(i));
+  }
+  function trollSummary() {
+    if (!currentChamp) return "Full Troll with no target: clashing AD, AP, tank and support items all in one build.";
+    const why = [];
+    state.slots.forEach(sl => { const it = byId[sl.id]; if (it && sl.kind === "legendary") trollScore(it, currentChamp).why.forEach(w => { if (!why.includes(w)) why.push(w); }); });
+    const boots = state.slots.find(sl => sl.kind === "boots" && sl.id);
+    if (boots) why.push(`${byId[boots.id].name} for boots`);
+    return `Full Troll vs ${currentChamp.name}: ${why.join(", ") || "nothing it wants"}.`;
+  }
+  function openTrollPrompt() {
+    $("trollPrompt").hidden = false; document.body.classList.add("gb-open");
+    $("tpCase").focus();
+  }
+  function closeTrollPrompt() { $("trollPrompt").hidden = true; document.body.classList.remove("gb-open"); }
 
   function layout() {
     const kinds = [];
@@ -505,6 +589,7 @@ body.gb-open { overflow: hidden; }
   }
 
   function roll() {
+    if (state.style === TROLL && !currentChamp && !trollAnyway) { openTrollPrompt(); return; }
     const kinds = layout();
     const keep = {};
     state.slots.filter(s => s.locked && s.id).forEach(s => (keep[s.kind] = keep[s.kind] || []).push(s));
@@ -513,6 +598,7 @@ body.gb-open { overflow: hidden; }
     state.fresh = new Set();
     state.slots.forEach((s, i) => { if (!s.locked) rollSlot(i, notes); });
     state.rolled = true;
+    state.trollNote = state.style === TROLL ? trollSummary() : null;
     render(notes);
   }
 
@@ -546,7 +632,8 @@ body.gb-open { overflow: hidden; }
     $("codeInput").value = state.slots.map(s => (s.id || "0") + (s.locked ? "!" : "")).join("-");
     if (eggPending) { eggPending = false; voltaicEgg(); }
     $("gambaNote").hidden = !state.gambaNote; $("gambaNote").textContent = state.gambaNote || "";
-    const ch = state.champ;
+    $("trollNote").hidden = !state.trollNote; $("trollNote").textContent = state.trollNote || "";
+    const ch = currentChamp;
     $("champCard").hidden = !ch;
     if (ch) {
       $("champCard").style.setProperty("--rar", tierOf(ch).color);
@@ -887,7 +974,7 @@ body.gb-open { overflow: hidden; }
     $("caseStrip").children[WIN_AT].classList.add("won");
     caseSound("reveal");
     caseLast.champ = c;
-    MODES.sr.state.champ = c; save("rr.champ", c.id);
+    currentChamp = c; save("rr.champ", c.id);
     $("caseResult").style.setProperty("--rar", tier.color);
     $("caseResult").innerHTML = `<img src="${CH.icons[c.id]}" alt=""><div><span class="case-tier">${esc(c.region)}</span><b>${esc(c.name)}</b><small>${esc(c.title)} · ${c.tags.map(esc).join(" / ")}</small></div>`;
     $("caseActions").innerHTML = `<button type="button" class="roll small" data-c="again">Open another</button><button type="button" class="ghost" data-c="keep">Play ${esc(c.name)}</button>`;
@@ -906,11 +993,17 @@ body.gb-open { overflow: hidden; }
     caseSpinning = false; caseRaf = 0;
     $("caseModal").hidden = true; document.body.classList.remove("gb-open");
     if (caseOpener && caseOpener.focus) caseOpener.focus();
+    if (pendingTroll && currentChamp) { pendingTroll = false; roll(); }
   }
   $("caseBtn").onclick = openCase;
+  $("tpCase").onclick = () => { closeTrollPrompt(); pendingTroll = true; openCase(); };
+  $("tpAnyway").onclick = () => { closeTrollPrompt(); trollAnyway = true; roll(); };
+  $("tpClose").onclick = closeTrollPrompt;
+  $("trollPrompt").addEventListener("click", e => { if (e.target === $("trollPrompt")) closeTrollPrompt(); });
+  document.addEventListener("keydown", e => { if (!$("trollPrompt").hidden && e.key === "Escape") closeTrollPrompt(); });
   $("ccReroll").onclick = openCase;
-  $("ccClear").onclick = () => { MODES.sr.state.champ = null; try { localStorage.removeItem("rr.champ"); } catch {} render(); };
-  { const saved = load("rr.champ", null); MODES.sr.state.champ = CH.champs.find(c => c.id === saved) || null; }   // remembered across visits
+  $("ccClear").onclick = () => { currentChamp = null; try { localStorage.removeItem("rr.champ"); } catch {} render(); };
+  { const saved = load("rr.champ", null); currentChamp = CH.champs.find(c => c.id === saved) || null; }   // remembered across visits
   $("caseClose").onclick = closeCase;
   $("caseModal").addEventListener("click", e => {
     if (e.target === $("caseModal")) { closeCase(); return; }
@@ -918,6 +1011,7 @@ body.gb-open { overflow: hidden; }
     if (b.dataset.c === "again") spinCase(); else closeCase();
   });
   document.addEventListener("keydown", e => { if (!$("caseModal").hidden && e.key === "Escape") closeCase(); });
+  window.RR_TROLL = { score: (id, champId) => trollScore(byId[id], CH.champs.find(c => c.id === champId)), feats: id => feats(byId[id]) };
   window.RR_CASE = { spin: spinCase, open: openCase, close: closeCase, last: caseLast, tierOf, get spinning() { return caseSpinning; } };
 
   // ---------- Augment picker (ARAM) ----------
@@ -964,7 +1058,7 @@ body.gb-open { overflow: hidden; }
     }
     $("roleRow").hidden = !M.roles;
     $("gambaBtn").hidden = id !== "aram";
-    $("caseBtn").hidden = id !== "sr";
+    $("caseBtn").hidden = false;
     $("augment").hidden = id !== "aram";
     if (M.roles) seg($("roleSeg"), M.roles, "role");
     seg($("styleSeg"), M.styles, "style");
