@@ -48,6 +48,20 @@ h1 { font-family: var(--display); font-weight: 700; font-size: clamp(30px, 6vw, 
 .sub { color: var(--muted); margin: 6px 0 0; }
 .patch { font-family: var(--cond); font-size: 14px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold);
   border: 1px solid var(--line); padding: 6px 10px; white-space: nowrap; }
+/* Quick theme switcher: a plain list, grouped Dark / Light */
+.header-side { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.theme-menu { position: relative; }
+.theme-menu-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: 14px; }
+.theme-menu-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; }
+.theme-menu-btn[aria-expanded="true"] svg { transform: rotate(180deg); }
+.theme-list { position: absolute; right: 0; top: calc(100% + 6px); z-index: 15; min-width: 210px; max-height: 70vh; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--line); box-shadow: 0 12px 32px rgba(0,0,0,.35); padding: 6px 0; }
+.theme-list .tl-group { font-family: var(--cond); text-transform: uppercase; letter-spacing: .1em; font-size: 11px; color: var(--muted); padding: 8px 14px 4px; }
+.theme-list button { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; text-align: left;
+  background: transparent; border: 0; padding: 6px 14px; font-size: 14px; cursor: pointer; color: var(--text); }
+.theme-list button:hover, .theme-list button:focus-visible { background: color-mix(in srgb, var(--gold) 14%, transparent); outline: none; }
+.theme-list button[aria-checked="true"] { color: var(--gold); font-weight: 600; }
+.theme-list button small { font-size: 12px; color: var(--gold); }
 
 .controls { display: grid; gap: 14px; background: var(--panel); border: 1px solid var(--line); padding: 16px; }
 .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
@@ -295,7 +309,13 @@ body.gb-open { overflow: hidden; }
       <h1>Rift Roulette</h1>
       <p class="sub">Random item builds for Summoner's Rift and ARAM. Lock what you like, reroll the rest.</p>
     </div>
-    <div class="patch" id="patchChip">Patch 26.10</div>
+    <div class="header-side">
+      <div class="patch" id="patchChip">Patch 26.10</div>
+      <div class="theme-menu">
+        <button type="button" class="ghost theme-menu-btn" id="themeMenuBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="themeMenu">Theme: <span id="themeMenuName">Hextech</span> <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="theme-list" id="themeMenu" role="menu" aria-label="Themes" hidden></div>
+      </div>
+    </div>
   </header>
 
   <nav class="tabs" id="modeTabs" role="tablist" aria-label="Game mode">
@@ -1144,7 +1164,33 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
       </div>
       <span class="pick">${on ? "Current theme" : "Use this theme"}</span></button>`;
   }
+  function renderThemeMenu() {
+    const line = (id, name) => `<button type="button" role="menuitemradio" data-pick="${id}" aria-checked="${TH.current === id}"><span>${esc(name)}</span>${TH.current === id ? "<small>✓</small>" : ""}</button>`;
+    $("themeMenu").innerHTML = line("auto", "Match Windows")
+      + `<div class="tl-group">Dark</div>` + TH.THEMES.filter(t => t.mode === "dark").map(t => line(t.id, t.name)).join("")
+      + `<div class="tl-group">Light</div>` + TH.THEMES.filter(t => t.mode === "light").map(t => line(t.id, t.name)).join("");
+    $("themeMenuName").textContent = TH.current === "auto" ? "Match Windows" : (TH.THEMES.find(t => t.id === TH.current) || TH.THEMES[0]).name;
+  }
+  const setMenuOpen = open => { $("themeMenu").hidden = !open; $("themeMenuBtn").setAttribute("aria-expanded", open); };
+  $("themeMenuBtn").onclick = () => {
+    const open = $("themeMenu").hidden; setMenuOpen(open);
+    if (open) ($("themeMenu").querySelector('[aria-checked="true"]') || $("themeMenu").querySelector("button")).focus();
+  };
+  $("themeMenu").onclick = e => {
+    const b = e.target.closest("[data-pick]"); if (!b) return;
+    TH.apply(b.dataset.pick); renderThemes(); setMenuOpen(false); $("themeMenuBtn").focus();
+  };
+  $("themeMenu").onkeydown = e => {                                  // arrow keys move through the list
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    const items = [...$("themeMenu").querySelectorAll("button")], i = items.indexOf(document.activeElement);
+    items[(i + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length].focus();
+  };
+  document.addEventListener("click", e => { if (!$("themeMenu").hidden && !e.target.closest(".theme-menu")) setMenuOpen(false); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("themeMenu").hidden) { setMenuOpen(false); $("themeMenuBtn").focus(); } });
+
   function renderThemes() {
+    renderThemeMenu();
     $("autoTheme").setAttribute("aria-pressed", TH.current === "auto");
     $("darkThemes").innerHTML = TH.THEMES.filter(t => t.mode === "dark").map(t => themeCard(t, "Dark")).join("");
     $("lightThemes").innerHTML = TH.THEMES.filter(t => t.mode === "light").map(t => themeCard(t, "Light")).join("");
