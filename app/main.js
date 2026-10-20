@@ -83,6 +83,18 @@ ipcMain.handle("detect-champion", async () => {
   return { error: "League isn't in champion select or a game right now." };
 });
 
+// Diagnostic: save everything Riot's in-game API reports, to see what it exposes (e.g. augments).
+ipcMain.handle("dump-live-data", async () => {
+  let data;
+  try { data = await localJSON("https://127.0.0.1:2999/liveclientdata/allgamedata"); }
+  catch { return { error: "No game found. Riot's in-game data only answers while you're in a game." }; }
+  const dir = path.join(app.getPath("documents"), "Rift Roulette diagnostics");
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, `live-game-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
+  fs.writeFileSync(file, JSON.stringify(data, null, 2));
+  return { file };
+});
+
 // ---------- Forced updates (GitHub Releases) ----------
 // On launch: check, and if a newer version exists, download it, install it and restart before the
 // app opens. Offline or slow? The app opens anyway after a short wait. While running, it checks
