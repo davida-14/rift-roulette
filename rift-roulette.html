@@ -467,7 +467,7 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
       const b = e.target.closest("button"); if (!b) return;
       state[key] = b.dataset.v; saveKey(key, state[key]);
       el.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
-      roll();
+      roll(key !== "style");                 // picking a style is a deliberate roll; a role change is not
     };
   }
 
@@ -579,8 +579,9 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
     if (M === MODES.aram && s.id === "6699") eggPending = true;
   }
 
-  function roll() {
-    if (state.style === TROLL && M === MODES.sr && !currentChamp && !trollAnyway) { openTrollPrompt(); return; }
+  // `auto` rolls (page load, tab switch, toggles) never stop for the FF15 champion prompt; they roll untargeted instead.
+  function roll(auto = false) {
+    if (!auto && state.style === TROLL && M === MODES.sr && !currentChamp && !trollAnyway) { openTrollPrompt(); return; }
     const kinds = layout();
     const keep = {};
     state.slots.filter(s => s.locked && s.id).forEach(s => (keep[s.kind] = keep[s.kind] || []).push(s));
@@ -666,8 +667,8 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
   };
   $("search").oninput = renderPool;
   $("rollBtn").onclick = () => { state.gambaNote = null; roll(); };
-  $("optBoots").onchange = e => { state.boots = e.target.checked; saveKey("boots", state.boots); roll(); };
-  $("optStarter").onchange = e => { state.starter = e.target.checked; saveKey("starter", state.starter); roll(); };
+  $("optBoots").onchange = e => { state.boots = e.target.checked; saveKey("boots", state.boots); roll(true); };
+  $("optStarter").onchange = e => { state.starter = e.target.checked; saveKey("starter", state.starter); roll(true); };
 
   $("copyBtn").onclick = () => {
     const v = $("codeInput").value;
@@ -1094,7 +1095,7 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
     $("status").textContent = "";
     $("patchChip").textContent = `${M.name} · Patch ${D.patch} · ${D.legendary.length} items`;
     $("foot").textContent = `Item data from Riot Data Dragon: Summoner's Rift ${MODES.sr.data.ddragon} (patch ${MODES.sr.data.patch}), ARAM ${MODES.aram.data.ddragon} (patch ${MODES.aram.data.patch}). Rift Roulette isn't endorsed by Riot Games.` + (APP_VERSION ? ` App version ${APP_VERSION}.` : "");
-    if (state.rolled) render(); else roll();
+    if (state.rolled) render(); else roll(true);
   }
   $("tabSR").onclick = () => setMode("sr");
   $("tabARAM").onclick = () => setMode("aram");
