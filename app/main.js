@@ -58,7 +58,7 @@ function createOverlay() {
   const start = overlayStartPosition();
   overlay = new BrowserWindow({
     width: SIZES.compact.w, height: SIZES.compact.h, x: start.x, y: start.y,
-    frame: false, transparent: true, resizable: false, movable: false, focusable: false,
+    frame: false, transparent: true, resizable: false, movable: false, focusable: true,
     skipTaskbar: true, alwaysOnTop: true, hasShadow: false, show: false, backgroundColor: "#00000000",
     icon: path.join(__dirname, "build", "icon.png"),
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: path.join(__dirname, "preload.js"), backgroundThrottling: false },
@@ -68,9 +68,59 @@ function createOverlay() {
   overlay.loadFile(path.join(__dirname, "src", "index.html"), { query: { v: app.getVersion(), view: "overlay" } });
   overlay.on("closed", () => { overlay = null; overlaySize = "compact"; });
 }
-function showOverlay() { if (!overlay) createOverlay(); if (!overlay.isVisible()) overlay.showInactive(); }
+// While League has focus it keeps the mouse, so clicks never reach another window. So the shortcut
+// hands focus to the overlay (and remembers the game), and hiding the overlay hands focus back.
+let win32;
+function getWin32() {
+  if (win32 !== undefined) return win32;
+  try {
+    const koffi = require("koffi");
+    const u = koffi.load("user32.dll"), k = koffi.load("kernel32.dll");
+    win32 = {
+      keyState: u.func("short __stdcall GetAsyncKeyState(int vKey)"),
+      foreground: u.func("intptr_t __stdcall GetForegroundWindow()"),
+      setForeground: u.func("bool __stdcall SetForegroundWindow(intptr_t hWnd)"),
+      threadOf: u.func("uint32_t __stdcall GetWindowThreadProcessId(intptr_t hWnd, void *pid)"),
+      attachInput: u.func("bool __stdcall AttachThreadInput(uint32_t idAttach, uint32_t idAttachTo, bool fAttach)"),
+      currentThread: k.func("uint32_t __stdcall GetCurrentThreadId()"),
+    };
+  } catch { win32 = null; }
+  return win32;
+}
+const hwndOf = w => { const b = w.getNativeWindowHandle(); return b.length >= 8 ? Number(b.readBigUInt64LE(0)) : b.readUInt32LE(0); };
+let returnTo = 0;                                     // the window (League) to give focus back to
+
+function focusOverlay() {
+  if (!overlay) createOverlay();
+  const w = getWin32();
+  if (w) {
+    const fg = Number(w.foreground()), ours = [overlay, mainWin].filter(Boolean).map(hwndOf);
+    if (fg && !ours.includes(fg)) returnTo = fg;
+  }
+  overlay.show();
+  if (w) {
+    // Windows only lets the app that has the input give focus away, so briefly share League's
+    // input queue while asking for focus (a standard, documented technique).
+    const me = w.currentThread(), theirs = w.threadOf(w.foreground(), null);
+    const share = theirs && theirs !== me;
+    if (share) w.attachInput(me, theirs, true);
+    w.setForeground(hwndOf(overlay));
+    if (share) w.attachInput(me, theirs, false);
+  }
+  overlay.focus();
+}
+function hideOverlay() {
+  if (!overlay) return;
+  const hadFocus = overlay.isFocused();
+  overlay.hide();
+  const w = getWin32();
+  if (w && returnTo && hadFocus) w.setForeground(returnTo);
+  returnTo = 0;
+}
+// Shortcut: hidden -> show and focus; showing but the game has focus -> focus it; focused -> hide.
 function toggleOverlay() {
-  if (overlay && overlay.isVisible()) overlay.hide(); else showOverlay();
+  if (!overlay || !overlay.isVisible() || !overlay.isFocused()) focusOverlay();
+  else hideOverlay();
 }
 
 // Gamba, the case and the FF15 prompt need more room than the compact panel: grow while one is
@@ -108,7 +158,7 @@ function enterOverlayMode() {
   overlayMode = true;
   createTray();
   if (mainWin) mainWin.hide();
-  showOverlay();
+  focusOverlay();
 }
 function exitOverlayMode() {
   overlayMode = false;
@@ -126,7 +176,7 @@ ipcMain.on("overlay-drag", (e, d) => {
 });
 ipcMain.on("overlay-drag-end", e => { if (fromOverlay(e)) saveOverlayPosition(); });
 ipcMain.on("overlay-size", (e, kind) => { if (fromOverlay(e)) setOverlaySize(kind); });
-ipcMain.on("overlay-hide", e => { if (fromOverlay(e)) overlay.hide(); });
+ipcMain.on("overlay-hide", e => { if (fromOverlay(e)) hideOverlay(); });
 ipcMain.on("overlay-mode", (_e, on) => (on ? enterOverlayMode() : exitOverlayMode()));
 global.riftToggleOverlay = toggleOverlay;        // reachable from a debugger for testing; not exposed to any page
 global.riftEnterOverlayMode = enterOverlayMode;
@@ -137,15 +187,13 @@ global.riftExitOverlayMode = exitOverlayMode;
 // Ctrl+Shift+B goes down. Read-only: nothing is intercepted, blocked or recorded.
 let keyWatch = null;
 function watchOverlayKeys() {
-  let keyState;
-  try {
-    const koffi = require("koffi");
-    keyState = koffi.load("user32.dll").func("short __stdcall GetAsyncKeyState(int vKey)");
-  } catch { return false; }
-  const down = vk => (keyState(vk) & 0x8000) !== 0;
+  const w = getWin32();
+  if (!w) return false;
+  const down = vk => (w.keyState(vk) & 0x8000) !== 0;
+  const pressed = vk => (w.keyState(vk) & 0x8001) !== 0;    // held now, or tapped since the last check
   let wasB = false;
   keyWatch = setInterval(() => {
-    const b = down(0x11) && down(0x10) && down(0x42);       // Ctrl + Shift + B
+    const b = down(0x11) && down(0x10) && pressed(0x42);    // Ctrl + Shift + B
     if (b && !wasB) toggleOverlay();
     wasB = b;
   }, 40);
