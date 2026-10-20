@@ -510,6 +510,7 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
   // range, role) and the build is drawn from the worst dozen. Without one: pure items from clashing camps.
   const TROLL = "Full Troll";
   let currentChamp = null, trollAnyway = false, pendingTroll = false;
+  const target = () => (M === MODES.sr ? currentChamp : null);   // ARAM champions are random, so no targeting there
   function feats(it) {
     const has = re => it.stats.some(x => re.test(x));
     return { ad: has(/^\d+ Attack Damage$/), ap: has(/^\d+ Ability Power$/), as: has(/Attack Speed$/), crit: has(/Critical Strike Chance$/),
@@ -531,22 +532,22 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
   }
   function trollLegendaryPool() {
     const items = D.legendary.filter(i => !state.bans.has(i.id));
-    if (!currentChamp) {
+    if (!target()) {
       return items.filter(i => { const f = feats(i);
         return [f.ad || f.crit, f.ap, (f.hp || f.armor || f.mr) && !f.ad && !f.ap, f.hsp || f.mregen].filter(Boolean).length === 1; }).map(i => i.id);
     }
-    return items.map(i => ({ id: i.id, sc: trollScore(i, currentChamp).sc + Math.random() * 1.5 }))
+    return items.map(i => ({ id: i.id, sc: trollScore(i, target()).sc + Math.random() * 1.5 }))
       .sort((a, b) => b.sc - a.sc).slice(0, 12).map(x => x.id);
   }
   function trollBootsPool() {
-    const c = currentChamp, pr = c && profile(c);
+    const c = target(), pr = c && profile(c);
     // Attack-speed boots on mages, magic-pen boots on attackers, no defensive boots for tanks.
     const ids = !c ? ["3006", "3020"] : pr.ap ? ["3006"] : pr.tank ? ["3006", "3020"] : ["3020"];
     const ok = ids.filter(i => !state.bans.has(i) && D.boots.some(b => b.id === i));
     return ok.length ? ok : D.boots.map(b => b.id).filter(i => !state.bans.has(i));
   }
   function trollStarterPool() {
-    const c = currentChamp, ap = c && profile(c).ap;
+    const c = target(), ap = c && profile(c).ap;
     let ids;
     if (!M.roles) ids = !c ? D.starter.map(x => x.id) : ap ? ["3177", "3184"] : ["3112"];        // ARAM: wrong Guardian's item
     else if (state.role === "Jungle") ids = !c ? ["1055", "1056"] : ap ? ["1055"] : ["1056"];   // jungler with a lane item
@@ -555,12 +556,13 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
     return ok.length ? ok : D.starter.map(x => x.id).filter(i => !state.bans.has(i));
   }
   function trollSummary() {
-    if (!currentChamp) return "Full Troll with no target: clashing AD, AP, tank and support items all in one build.";
+    const tc = target();
+    if (!tc) return "Full Troll: clashing AD, AP, tank and support items all in one build.";
     const why = [];
-    state.slots.forEach(sl => { const it = byId[sl.id]; if (it && sl.kind === "legendary") trollScore(it, currentChamp).why.forEach(w => { if (!why.includes(w)) why.push(w); }); });
+    state.slots.forEach(sl => { const it = byId[sl.id]; if (it && sl.kind === "legendary") trollScore(it, tc).why.forEach(w => { if (!why.includes(w)) why.push(w); }); });
     const boots = state.slots.find(sl => sl.kind === "boots" && sl.id);
     if (boots) why.push(`${byId[boots.id].name} for boots`);
-    return `Full Troll vs ${currentChamp.name}: ${why.join(", ") || "nothing it wants"}.`;
+    return `Full Troll vs ${tc.name}: ${why.join(", ") || "nothing it wants"}.`;
   }
   function openTrollPrompt() {
     $("trollPrompt").hidden = false; document.body.classList.add("gb-open");
@@ -597,7 +599,7 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
   }
 
   function roll() {
-    if (state.style === TROLL && !currentChamp && !trollAnyway) { openTrollPrompt(); return; }
+    if (state.style === TROLL && M === MODES.sr && !currentChamp && !trollAnyway) { openTrollPrompt(); return; }
     const kinds = layout();
     const keep = {};
     state.slots.filter(s => s.locked && s.id).forEach(s => (keep[s.kind] = keep[s.kind] || []).push(s));
@@ -641,7 +643,7 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
     if (eggPending) { eggPending = false; voltaicEgg(); }
     $("gambaNote").hidden = !state.gambaNote; $("gambaNote").textContent = state.gambaNote || "";
     $("trollNote").hidden = !state.trollNote; $("trollNote").textContent = state.trollNote || "";
-    const ch = currentChamp;
+    const ch = target();
     $("champCard").hidden = !ch;
     if (ch) {
       $("champCard").style.setProperty("--rar", tierOf(ch).color);
@@ -1066,7 +1068,7 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
     }
     $("roleRow").hidden = !M.roles;
     $("gambaBtn").hidden = id !== "aram";
-    $("caseBtn").hidden = false;
+    $("caseBtn").hidden = id !== "sr";
     $("augment").hidden = id !== "aram";
     if (M.roles) seg($("roleSeg"), M.roles, "role");
     seg($("styleSeg"), M.styles, "style");
