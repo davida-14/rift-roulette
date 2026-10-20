@@ -3,3 +3,4 @@ app/dist/
 data/
 *.log
 .claude/
+*.tmp
