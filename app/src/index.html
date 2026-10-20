@@ -167,6 +167,7 @@ footer { color: var(--muted); font-size: 13px; }
 /* Champion case: CS-style reel. Rarity colours are the familiar case-opening tiers, the same in every theme. */
 .case-panel { width: min(100%, 780px); }
 .troll-panel { width: min(100%, 480px); }
+.gb-head p.tp-question { font-size: 17px; font-weight: 700; }
 .troll-note { color: var(--ban); }
 .case-window { position: relative; height: 156px; overflow: hidden; border: 1px solid var(--line); background: var(--void);
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
@@ -389,7 +390,7 @@ body.gb-open { overflow: hidden; }
       <div class="gb-head">
         <div>
           <h2 id="tpTitle">Pick a victim</h2>
-          <p>Are you known to have homoerotic thoughts?</p>
+          <p class="tp-question">Are you known to have homoerotic thoughts?</p>
         </div>
         <button type="button" class="icon-btn" id="tpClose" aria-label="Close" title="Close (Esc)"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
