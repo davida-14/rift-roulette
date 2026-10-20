@@ -383,7 +383,7 @@ body.gb-open { overflow: hidden; }
       <div class="gb-head">
         <div>
           <h2 id="tpTitle">Pick a victim</h2>
-          <p>Full Troll works best against a specific champion. Open the case to get one, and the build is rolled to ruin them.</p>
+          <p>FF15 works best against a specific champion. Open the case to get one, and the build is rolled to ruin them.</p>
         </div>
         <button type="button" class="icon-btn" id="tpClose" aria-label="Close" title="Close (Esc)"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
@@ -453,13 +453,13 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
     sr: {
       name: "Summoner's Rift", data: window.ITEM_DATA, key: "rr.",
       roles: ["Any", "Top", "Jungle", "Mid", "Bot", "Support"],
-      styles: ["Chaos", "AD", "AP", "Bruiser", "Tank", "Support", "Full Troll"],
+      styles: ["AD", "AP", "Bruiser", "Tank", "Support", "FF15"],
       laneStarters: { Top: ["1054", "1055", "1056", "1120"], Mid: ["1056", "1082", "1055", "1054"], Bot: ["1055", "1086", "1083"] },
     },
     aram: {
       name: "ARAM", data: window.ARAM_DATA, key: "rr.aram.",
       roles: null,
-      styles: ["Chaos", "AD", "AP", "Health", "Resistances", "Support", "Full Troll"],
+      styles: ["AD", "AP", "Health", "Resistances", "Support", "FF15"],
     },
   };
   for (const m of Object.values(MODES)) {
@@ -468,13 +468,13 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
     const k = m.key;
     m.state = {
       role: m.roles ? load(k + "role", "Any") : "Any",
-      style: load(k + "style", "Chaos"),
+      style: load(k + "style", "AD"),
       boots: load(k + "boots", true),
       starter: load(k + "starter", true),
       bans: new Set(load(k + "bans", [])),
       slots: [], fresh: new Set(), rolled: false,
     };
-    if (!m.styles.includes(m.state.style)) m.state.style = "Chaos";
+    if (!m.styles.includes(m.state.style)) m.state.style = m.styles[0];   // e.g. a saved "Chaos" from older versions
   }
   let M = MODES[load("rr.mode", "sr")] || MODES.sr;
   let D = M.data, byId = M.byId, state = M.state;
@@ -502,13 +502,13 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
   const bootsPool = () => state.style === TROLL ? trollBootsPool() : D.boots.map(b => b.id).filter(i => !state.bans.has(i));
   function legendaryPool() {
     if (state.style === TROLL) return trollLegendaryPool();
-    return D.legendary.filter(i => !state.bans.has(i.id) && (state.style === "Chaos" || i.classes.includes(state.style))).map(i => i.id);
+    return D.legendary.filter(i => !state.bans.has(i.id) && i.classes.includes(state.style)).map(i => i.id);
   }
 
-  // ---------- Full Troll: the most anti-synergy build we can find ----------
+  // ---------- FF15: the most anti-synergy build we can find ----------
   // With a champion: every item is scored against what that champion needs (damage type, resource,
   // range, role) and the build is drawn from the worst dozen. Without one: pure items from clashing camps.
-  const TROLL = "Full Troll";
+  const TROLL = "FF15";
   let currentChamp = null, trollAnyway = false, pendingTroll = false;
   const target = () => (M === MODES.sr ? currentChamp : null);   // ARAM champions are random, so no targeting there
   function feats(it) {
@@ -557,12 +557,12 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
   }
   function trollSummary() {
     const tc = target();
-    if (!tc) return "Full Troll: clashing AD, AP, tank and support items all in one build.";
+    if (!tc) return "FF15: clashing AD, AP, tank and support items all in one build.";
     const why = [];
     state.slots.forEach(sl => { const it = byId[sl.id]; if (it && sl.kind === "legendary") trollScore(it, tc).why.forEach(w => { if (!why.includes(w)) why.push(w); }); });
     const boots = state.slots.find(sl => sl.kind === "boots" && sl.id);
     if (boots) why.push(`${byId[boots.id].name} for boots`);
-    return `Full Troll vs ${tc.name}: ${why.join(", ") || "nothing it wants"}.`;
+    return `FF15 vs ${tc.name}: ${why.join(", ") || "nothing it wants"}.`;
   }
   function openTrollPrompt() {
     $("trollPrompt").hidden = false; document.body.classList.add("gb-open");
