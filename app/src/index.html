@@ -697,6 +697,7 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
 
 
   function renderPool() {
+    if (document.documentElement.classList.contains("compact")) return;   // the overlay never shows the pool
     const q = $("search").value.trim().toLowerCase();
     const inBuild = new Set(state.slots.map(s => s.id));
     const groups = [["Legendary items", D.legendary], ["Boots", D.boots], ["Starters", D.starter]];
@@ -1120,14 +1121,6 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
     finally { $("detectBtn").disabled = false; }
   }
   $("detectBtn").onclick = detectChampion;
-  // Hidden diagnostic (desktop app): Ctrl+Shift+D saves Riot's in-game data to Documents\Rift Roulette diagnostics.
-  document.addEventListener("keydown", async e => {
-    if (!(e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "d") || !window.riftDesktop || !window.riftDesktop.dumpLiveData) return;
-    e.preventDefault();
-    const r = await window.riftDesktop.dumpLiveData();
-    state.detectNote = r.error ? `Diagnostic: ${r.error}` : `Diagnostic saved: ${r.file}`;
-    render();
-  });
 
   // ---------- Augment picker (ARAM) ----------
   const AUG = ["left", "middle", "right"];

@@ -16,7 +16,7 @@ function createWindow() {
     title: "Rift Roulette",
     backgroundColor: "#0b1118",
     icon: path.join(__dirname, "build", "icon.png"),
-    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: path.join(__dirname, "preload.js"), backgroundThrottling: false },
+    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: path.join(__dirname, "preload.js") },
   });
   // Any web link opens in the user's browser, never inside the app.
   mainWin.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: "deny" }; });
@@ -61,7 +61,7 @@ function createOverlay() {
     frame: false, transparent: true, resizable: false, movable: false, focusable: true,
     skipTaskbar: true, alwaysOnTop: true, hasShadow: false, show: false, backgroundColor: "#00000000",
     icon: path.join(__dirname, "build", "icon.png"),
-    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: path.join(__dirname, "preload.js"), backgroundThrottling: false },
+    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: path.join(__dirname, "preload.js") },
   });
   overlay.setAlwaysOnTop(true, "screen-saver");
   overlay.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: "deny" }; });
@@ -259,18 +259,6 @@ ipcMain.handle("detect-champion", async () => {
   return { error: "League isn't in champion select or a game right now." };
 });
 
-// Diagnostic: save everything Riot's in-game API reports, to see what it exposes (e.g. augments).
-ipcMain.handle("dump-live-data", async () => {
-  let data;
-  try { data = await localJSON("https://127.0.0.1:2999/liveclientdata/allgamedata"); }
-  catch { return { error: "No game found. Riot's in-game data only answers while you're in a game." }; }
-  const dir = path.join(app.getPath("documents"), "Rift Roulette diagnostics");
-  fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, `live-game-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
-  fs.writeFileSync(file, JSON.stringify(data, null, 2));
-  return { file };
-});
-
 // ---------- Forced updates (GitHub Releases) ----------
 // On launch: check, and if a newer version exists, download it, install it and restart before the
 // app opens. Offline or slow? The app opens anyway after a short wait. While running, it checks
@@ -278,7 +266,7 @@ ipcMain.handle("dump-live-data", async () => {
 const SPLASH_HTML = `<!doctype html><meta charset="utf-8"><body style="margin:0;height:100vh;display:grid;place-items:center;
   background:#0b1118;color:#e7e2d4;font:15px 'Segoe UI',sans-serif;border:1px solid #c8a65a;box-sizing:border-box">
   <div style="text-align:center"><div style="font:700 22px Georgia,serif;color:#c8a65a;letter-spacing:.06em;margin-bottom:10px">RIFT ROULETTE</div>
-  <div id="msg">Checking for updates…</div></div></body>`;
+  <div id="msg">Checking for updatesâ€¦</div></div></body>`;
 
 function showSplash() {
   splash = new BrowserWindow({ width: 360, height: 170, frame: false, resizable: false, show: true, backgroundColor: "#0b1118",
@@ -301,13 +289,13 @@ function startWithUpdateCheck() {
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.on("update-not-available", openApp);
   autoUpdater.on("error", () => { if (!opened) openApp(); });
-  autoUpdater.on("update-available", info => { if (!opened) { clearTimeout(timer); splashText(`Downloading update ${info.version}…`); } });
-  autoUpdater.on("download-progress", p => { if (!opened) splashText(`Downloading update… ${Math.round(p.percent)}%`); });
+  autoUpdater.on("update-available", info => { if (!opened) { clearTimeout(timer); splashText(`Downloading update ${info.version}â€¦`); } });
+  autoUpdater.on("download-progress", p => { if (!opened) splashText(`Downloading updateâ€¦ ${Math.round(p.percent)}%`); });
   autoUpdater.on("update-downloaded", async info => {
     if (opened && mainWin) {
       await dialog.showMessageBox(mainWin, { type: "info", title: "Rift Roulette update", buttons: ["Restart now"],
         message: `Rift Roulette ${info.version} is ready.`, detail: "The app will restart to finish updating." });
-    } else splashText(`Installing ${info.version}…`);
+    } else splashText(`Installing ${info.version}â€¦`);
     setImmediate(() => autoUpdater.quitAndInstall(true, true));   // silent install, then relaunch
   });
   autoUpdater.checkForUpdates().catch(() => openApp());
