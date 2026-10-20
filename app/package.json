@@ -44,6 +44,9 @@
         "repo": "rift-roulette",
         "releaseType": "release"
       }
+    ],
+    "asarUnpack": [
+      "**/node_modules/koffi/**"
     ]
   },
   "devDependencies": {
@@ -51,6 +54,7 @@
     "electron-builder": "26.15.3"
   },
   "dependencies": {
-    "electron-updater": "6.8.9"
+    "electron-updater": "6.8.9",
+    "koffi": "3.3.3"
   }
 }

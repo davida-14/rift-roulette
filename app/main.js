@@ -54,7 +54,26 @@ ipcMain.on("build", (_e, build) => {
   lastBuild = build;
   if (overlay) overlay.webContents.send("build", build);
 });
-ipcMain.handle("overlay-shortcut", () => (globalShortcut.isRegistered(OVERLAY_KEY) ? "Ctrl+Shift+B" : null));
+// League switches off Windows hotkeys while the game has focus, so instead of registering one we
+// read the keyboard's up/down state (GetAsyncKeyState) about 25 times a second and toggle when
+// Ctrl+Shift+B goes down. Read-only: nothing is intercepted, blocked or recorded.
+let keyWatch = null;
+function watchOverlayKeys() {
+  let keyState;
+  try {
+    const koffi = require("koffi");
+    keyState = koffi.load("user32.dll").func("short __stdcall GetAsyncKeyState(int vKey)");
+  } catch { return false; }
+  const down = vk => (keyState(vk) & 0x8000) !== 0;
+  let wasDown = false;
+  keyWatch = setInterval(() => {
+    const now = down(0x11) && down(0x10) && down(0x42);   // Ctrl, Shift, B
+    if (now && !wasDown) toggleOverlay();
+    wasDown = now;
+  }, 40);
+  return true;
+}
+ipcMain.handle("overlay-shortcut", () => (keyWatch || globalShortcut.isRegistered(OVERLAY_KEY) ? "Ctrl+Shift+B" : null));
 
 // ---------- Champion detection (League's own local APIs, no screenshots) ----------
 // In a game, Riot's Live Client Data API (port 2999) lists every player and their champion.
@@ -171,7 +190,8 @@ function startWithUpdateCheck() {
 
 Menu.setApplicationMenu(null);
 app.whenReady().then(() => {
-  globalShortcut.register(OVERLAY_KEY, toggleOverlay);   // fails quietly if another app already owns the key
+  // Key-state check works even while League is focused; a normal hotkey is only the fallback.
+  if (!watchOverlayKeys()) globalShortcut.register(OVERLAY_KEY, toggleOverlay);
   startWithUpdateCheck();
 });
 app.on("will-quit", () => globalShortcut.unregisterAll());
