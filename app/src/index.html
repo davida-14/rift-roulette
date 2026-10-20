@@ -129,31 +129,6 @@ h2 { font-family: var(--display); font-size: 20px; letter-spacing: .06em; margin
 .pi.inbuild { border-color: var(--gold); }
 .group-title { grid-column: 1 / -1; font-family: var(--cond); text-transform: uppercase; letter-spacing: .1em; font-size: 13px; color: var(--muted); margin-top: 10px; }
 [hidden] { display: none !important; }
-.themes { display: grid; gap: 14px; }
-.theme-group h3 { font-family: var(--cond); text-transform: uppercase; letter-spacing: .1em; font-size: 13px; font-weight: 500; color: var(--muted); margin: 0; }
-.theme-group { display: grid; gap: 10px; }
-.theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; }
-.auto-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; background: var(--panel); border: 1px solid var(--line); padding: 12px 16px; }
-.auto-row p { margin: 0; color: var(--muted); font-size: 14px; flex: 1 1 260px; }
-.auto-row .ghost[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--on-gold); font-weight: 600; }
-.tcard { padding: 0; border: 1px solid var(--line); background: transparent; cursor: pointer; text-align: left; display: grid; }
-.tcard:hover { border-color: var(--gold); }
-.tcard[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
-/* .tprev gets the theme's own tokens inline, so the preview is drawn in that theme */
-.tprev { background: var(--void); color: var(--text); padding: 12px; display: grid; gap: 10px; }
-.tprev .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.tprev .tname { font-family: var(--display); font-weight: 700; font-size: 16px; letter-spacing: .04em; color: var(--gold); }
-.tprev .tmode { font-family: var(--cond); font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
-.tprev .sw { display: flex; height: 14px; border: 1px solid var(--line); }
-.tprev .sw i { flex: 1; }
-.tprev .mini { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); padding: 8px; }
-.tprev .mini b { width: 26px; height: 26px; border: 1px solid var(--gold); background: var(--glow); flex: none; }
-.tprev .mini span:not(.chip) { font-size: 13px; font-weight: 600; flex: 1; min-width: 0; }
-.tprev .mini small { display: block; font-family: var(--cond); color: var(--gold); font-weight: 500; }
-.tprev .mini em { font-style: normal; font-family: var(--display); font-size: 11px; font-weight: 700; padding: 4px 8px;
-  background: linear-gradient(180deg, var(--roll-a), var(--roll-b)); color: var(--roll-text); border: 1px solid var(--teal); }
-.tcard .pick { font-family: var(--cond); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 6px 12px; background: var(--panel); }
-.tcard[aria-pressed="true"] .pick { color: var(--gold); }
 footer { color: var(--muted); font-size: 13px; }
 /* Augment picker (ARAM): three card slots, one lights up */
 .augment { display: grid; gap: 12px; }
@@ -383,22 +358,6 @@ body.gb-open { overflow: hidden; }
     </div>
     <p class="hint" id="poolHint">Click an item to ban it from rolls. Click again to unban.</p>
     <div class="pool" id="pool"></div>
-  </section>
-
-  <section class="themes" aria-labelledby="themesTitle">
-    <h2 id="themesTitle">Themes</h2>
-    <div class="auto-row">
-      <button type="button" class="ghost" id="autoTheme" data-theme="auto" aria-pressed="false">Match Windows</button>
-      <p>Uses Hextech when Windows is in dark mode and Daylight when it's in light mode.</p>
-    </div>
-    <div class="theme-group">
-      <h3>Dark</h3>
-      <div class="theme-grid" id="darkThemes"></div>
-    </div>
-    <div class="theme-group">
-      <h3>Light</h3>
-      <div class="theme-grid" id="lightThemes"></div>
-    </div>
   </section>
 
   <footer id="foot"></footer>
@@ -1152,18 +1111,6 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
 
   // Themes
   const TH = window.RR_THEME;
-  function themeCard(t, modeLabel) {
-    const v = TH.resolve(t.id).vars;
-    const style = Object.entries(v).map(([k, val]) => `--${k}:${val}`).join(";");
-    const on = TH.current === t.id;
-    return `<button type="button" class="tcard" data-theme="${t.id}" aria-pressed="${on}">
-      <div class="tprev" style="${style}">
-        <div class="top"><span class="tname">${esc(t.name)}</span><span class="tmode">${modeLabel}</span></div>
-        <div class="sw"><i style="background:${v.void}"></i><i style="background:${v.panel}"></i><i style="background:${v.gold}"></i><i style="background:${v.teal}"></i><i style="background:${v.text}"></i></div>
-        <div class="mini"><b></b><span>Infinity Edge<small>3500 gold</small></span><span class="chip c-AD">AD</span><em>Roll</em></div>
-      </div>
-      <span class="pick">${on ? "Current theme" : "Use this theme"}</span></button>`;
-  }
   function renderThemeMenu() {
     const line = (id, name) => `<button type="button" role="menuitemradio" data-pick="${id}" aria-checked="${TH.current === id}"><span>${esc(name)}</span>${TH.current === id ? "<small>✓</small>" : ""}</button>`;
     $("themeMenu").innerHTML = line("auto", "Match Windows")
@@ -1178,7 +1125,7 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
   };
   $("themeMenu").onclick = e => {
     const b = e.target.closest("[data-pick]"); if (!b) return;
-    TH.apply(b.dataset.pick); renderThemes(); setMenuOpen(false); $("themeMenuBtn").focus();
+    TH.apply(b.dataset.pick); renderThemeMenu(); setMenuOpen(false); $("themeMenuBtn").focus();
   };
   $("themeMenu").onkeydown = e => {                                  // arrow keys move through the list
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
@@ -1188,18 +1135,8 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
   };
   document.addEventListener("click", e => { if (!$("themeMenu").hidden && !e.target.closest(".theme-menu")) setMenuOpen(false); });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("themeMenu").hidden) { setMenuOpen(false); $("themeMenuBtn").focus(); } });
+  renderThemeMenu();
 
-  function renderThemes() {
-    renderThemeMenu();
-    $("autoTheme").setAttribute("aria-pressed", TH.current === "auto");
-    $("darkThemes").innerHTML = TH.THEMES.filter(t => t.mode === "dark").map(t => themeCard(t, "Dark")).join("");
-    $("lightThemes").innerHTML = TH.THEMES.filter(t => t.mode === "light").map(t => themeCard(t, "Light")).join("");
-  }
-  document.querySelector(".themes").onclick = e => {
-    const c = e.target.closest("[data-theme]"); if (!c) return;
-    TH.apply(c.dataset.theme); renderThemes();
-  };
-  renderThemes();
 
   setMode(M === MODES.aram ? "aram" : "sr");
   if (currentChamp) scheduleChampClear();
