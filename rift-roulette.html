@@ -384,13 +384,13 @@ body.gb-open { overflow: hidden; }
       <div class="gb-head">
         <div>
           <h2 id="tpTitle">Pick a victim</h2>
-          <p>FF15 works best against a specific champion. Open the case to get one, and the build is rolled to ruin them.</p>
+          <p>Are you extremely washed?</p>
         </div>
         <button type="button" class="icon-btn" id="tpClose" aria-label="Close" title="Close (Esc)"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
       <div class="gb-actions">
-        <button type="button" class="roll small" id="tpCase">Open the case</button>
-        <button type="button" class="ghost" id="tpAnyway">Troll without a champion</button>
+        <button type="button" class="roll small" id="tpCase">YES</button>
+        <button type="button" class="roll small" id="tpAnyway">YES</button>
       </div>
     </div>
   </div>
@@ -1008,7 +1008,7 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
   }
   $("caseBtn").onclick = openCase;
   $("tpCase").onclick = () => { closeTrollPrompt(); pendingTroll = true; openCase(); };
-  $("tpAnyway").onclick = () => { closeTrollPrompt(); trollAnyway = true; roll(); };
+  $("tpAnyway").onclick = $("tpCase").onclick;
   $("tpClose").onclick = closeTrollPrompt;
   $("trollPrompt").addEventListener("click", e => { if (e.target === $("trollPrompt")) closeTrollPrompt(); });
   document.addEventListener("keydown", e => { if (!$("trollPrompt").hidden && e.key === "Escape") closeTrollPrompt(); });
