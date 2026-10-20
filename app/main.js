@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, Menu, shell, dialog, ipcMain, globalShortcut, screen } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const path = require("path");
 const fs = require("fs");
@@ -22,8 +22,39 @@ function createWindow() {
   mainWin.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: "deny" }; });
   mainWin.webContents.on("will-navigate", (e, url) => { if (!url.startsWith("file://")) { e.preventDefault(); shell.openExternal(url); } });
   mainWin.loadFile(path.join(__dirname, "src", "index.html"), { query: { v: app.getVersion() } });
-  mainWin.on("closed", () => { mainWin = null; });
+  mainWin.on("closed", () => { mainWin = null; app.quit(); });   // closing the app also closes the overlay
 }
+
+// ---------- Build overlay ----------
+// A small see-through window in the top-right corner showing the current build. It never touches
+// League: it's an ordinary always-on-top window that ignores the mouse and never takes focus, so
+// it shows over League in Borderless or Windowed mode (not exclusive Fullscreen).
+const OVERLAY_KEY = "CommandOrControl+Shift+B";
+let overlay = null, lastBuild = null;
+function createOverlay() {
+  const { workArea } = screen.getPrimaryDisplay();
+  overlay = new BrowserWindow({
+    width: 300, height: 470, x: workArea.x + workArea.width - 316, y: workArea.y + 90,
+    frame: false, transparent: true, resizable: false, movable: false, focusable: false,
+    skipTaskbar: true, alwaysOnTop: true, hasShadow: false, show: false, backgroundColor: "#00000000",
+    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: path.join(__dirname, "overlay-preload.js") },
+  });
+  overlay.setAlwaysOnTop(true, "screen-saver");
+  overlay.setIgnoreMouseEvents(true);
+  overlay.webContents.on("did-finish-load", () => { if (lastBuild) overlay.webContents.send("build", lastBuild); });
+  overlay.loadFile(path.join(__dirname, "src", "overlay.html"));
+  overlay.on("closed", () => { overlay = null; });
+}
+function toggleOverlay() {
+  if (!overlay) createOverlay();
+  if (overlay.isVisible()) overlay.hide(); else overlay.showInactive();
+}
+global.riftToggleOverlay = toggleOverlay;   // reachable from a debugger for testing; not exposed to any page
+ipcMain.on("build", (_e, build) => {
+  lastBuild = build;
+  if (overlay) overlay.webContents.send("build", build);
+});
+ipcMain.handle("overlay-shortcut", () => (globalShortcut.isRegistered(OVERLAY_KEY) ? "Ctrl+Shift+B" : null));
 
 // ---------- Champion detection (League's own local APIs, no screenshots) ----------
 // In a game, Riot's Live Client Data API (port 2999) lists every player and their champion.
@@ -139,5 +170,9 @@ function startWithUpdateCheck() {
 }
 
 Menu.setApplicationMenu(null);
-app.whenReady().then(startWithUpdateCheck);
+app.whenReady().then(() => {
+  globalShortcut.register(OVERLAY_KEY, toggleOverlay);   // fails quietly if another app already owns the key
+  startWithUpdateCheck();
+});
+app.on("will-quit", () => globalShortcut.unregisterAll());
 app.on("window-all-closed", () => app.quit());

@@ -18,6 +18,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "overlay-preload.js",
       "src/**/*",
       "build/icon.png"
     ],

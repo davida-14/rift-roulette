@@ -346,6 +346,7 @@ body.gb-open { overflow: hidden; }
       <button class="ghost" id="loadBtn" type="button">Load code</button>
       <span class="status" id="status" role="status"></span>
     </div>
+    <p class="hint" id="overlayHint" hidden></p>
   </section>
 
   <section aria-label="Item pool">
@@ -641,6 +642,32 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
       $("ccTitle").textContent = `${ch.title} · ${ch.tags.join(" / ")}`;
     }
     renderPool();
+    publishOverlay();
+  }
+
+  // Desktop app: hand the current build (and theme colours) to the Ctrl+Shift+B overlay window.
+  function publishOverlay() {
+    if (!window.riftDesktop || !window.riftDesktop.publishBuild) return;
+    const cs = getComputedStyle(document.documentElement), v = k => cs.getPropertyValue("--" + k).trim();
+    const rgba = (hex, a) => { const n = parseInt(hex.replace("#", ""), 16); return `rgba(${n >> 16 & 255}, ${n >> 8 & 255}, ${n & 255}, ${a})`; };
+    const ch = target();
+    window.riftDesktop.publishBuild({
+      mode: M.name, style: state.style,
+      champ: ch ? { name: ch.name, icon: CH.icons[ch.id] } : null,
+      slots: state.slots.filter(s => byId[s.id]).map(s => ({
+        kind: s.kind === "legendary" ? "Legendary" : s.kind === "boots" ? "Boots" : "Starter",
+        name: byId[s.id].name, icon: D.icons[s.id], gold: byId[s.id].gold })),
+      total: state.slots.reduce((a, s) => a + cost(s.id), 0).toLocaleString(),
+      theme: { panel: rgba(v("panel"), 0.86), line: v("line"), text: v("text"), muted: v("muted"), gold: v("gold") },
+    });
+  }
+  addEventListener("rr-theme", () => { if (state.rolled) publishOverlay(); });
+  if (window.riftDesktop && window.riftDesktop.overlayShortcut) {
+    window.riftDesktop.overlayShortcut().then(key => {
+      if (!key) return;
+      $("overlayHint").hidden = false;
+      $("overlayHint").textContent = `Press ${key} anywhere, even in League, to show this build in a small overlay. League needs to be in Borderless or Windowed mode.`;
+    }).catch(() => {});
   }
 
   function renderPool() {

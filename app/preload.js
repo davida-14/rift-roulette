@@ -5,4 +5,6 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("riftDesktop", {
   detectChampion: () => ipcRenderer.invoke("detect-champion"),
   dumpLiveData: () => ipcRenderer.invoke("dump-live-data"),
+  publishBuild: build => ipcRenderer.send("build", build),           // feeds the Ctrl+Shift+B overlay
+  overlayShortcut: () => ipcRenderer.invoke("overlay-shortcut"),
 });
