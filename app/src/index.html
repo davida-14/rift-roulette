@@ -472,7 +472,7 @@ window.CHAMP_DATA = {"patch":"26.10","ddragon":"16.10.1","champs":[{"id":"Aatrox
       const b = e.target.closest("button"); if (!b) return;
       state[key] = b.dataset.v; saveKey(key, state[key]);
       el.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
-      roll(key !== "style");                 // picking a style is a deliberate roll; a role change is not
+      roll(true);                            // only the Roll build button can open the FF15 champion prompt
     };
   }
 
