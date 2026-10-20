@@ -17,6 +17,7 @@
     "productName": "Rift Roulette",
     "files": [
       "main.js",
+      "preload.js",
       "src/**/*",
       "build/icon.png"
     ],

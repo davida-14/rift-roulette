@@ -1,6 +1,9 @@
-const { app, BrowserWindow, Menu, shell, dialog } = require("electron");
+const { app, BrowserWindow, Menu, shell, dialog, ipcMain } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const path = require("path");
+const fs = require("fs");
+const https = require("https");
+const { execFile } = require("child_process");
 
 let mainWin = null, splash = null;
 
@@ -13,7 +16,7 @@ function createWindow() {
     title: "Rift Roulette",
     backgroundColor: "#0b1118",
     icon: path.join(__dirname, "build", "icon.png"),
-    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
+    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: path.join(__dirname, "preload.js") },
   });
   // Any web link opens in the user's browser, never inside the app.
   mainWin.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: "deny" }; });
@@ -21,6 +24,64 @@ function createWindow() {
   mainWin.loadFile(path.join(__dirname, "src", "index.html"), { query: { v: app.getVersion() } });
   mainWin.on("closed", () => { mainWin = null; });
 }
+
+// ---------- Champion detection (League's own local APIs, no screenshots) ----------
+// In a game, Riot's Live Client Data API (port 2999) lists every player and their champion.
+// In champion select, the League client's local API reports the champion you're on. Both only
+// answer on this PC, over HTTPS with Riot's self-signed certificate, so certificate checks are
+// relaxed for these 127.0.0.1 requests only.
+function localJSON(url, password) {
+  return new Promise((resolve, reject) => {
+    const headers = password ? { Authorization: "Basic " + Buffer.from("riot:" + password).toString("base64") } : {};
+    const req = https.get(url, { rejectUnauthorized: false, headers, timeout: 2000 }, res => {
+      let body = "";
+      res.on("data", c => body += c);
+      res.on("end", () => {
+        if (res.statusCode >= 400) return reject(new Error("HTTP " + res.statusCode));
+        try { resolve(JSON.parse(body)); } catch (e) { reject(e); }
+      });
+    });
+    req.on("timeout", () => req.destroy(new Error("timeout")));
+    req.on("error", reject);
+  });
+}
+
+// The League client writes its port and password to a lockfile; if it isn't in a usual install
+// folder, read them from the running client's command line instead.
+async function clientCredentials() {
+  for (const dir of ["C:\\Riot Games\\League of Legends", "D:\\Riot Games\\League of Legends", "E:\\Riot Games\\League of Legends"]) {
+    try {
+      const [, , port, password] = fs.readFileSync(path.join(dir, "lockfile"), "utf8").split(":");
+      if (port && password) return { port, password };
+    } catch {}
+  }
+  const cmd = await new Promise(resolve => execFile("powershell.exe",
+    ["-NoProfile", "-Command", "(Get-CimInstance Win32_Process -Filter \"name='LeagueClientUx.exe'\").CommandLine"],
+    { windowsHide: true, timeout: 6000 }, (err, out) => resolve(out || "")));
+  const port = (/--app-port=(\d+)/.exec(cmd) || [])[1], password = (/--remoting-auth-token=([\w-]+)/.exec(cmd) || [])[1];
+  return port && password ? { port, password } : null;
+}
+
+ipcMain.handle("detect-champion", async () => {
+  try {
+    const [me, players] = await Promise.all([
+      localJSON("https://127.0.0.1:2999/liveclientdata/activeplayername"),
+      localJSON("https://127.0.0.1:2999/liveclientdata/playerlist"),
+    ]);
+    const mine = players.find(p => p.riotId === me || p.summonerName === me) ||
+                 players.find(p => p.riotIdGameName && String(me).startsWith(p.riotIdGameName + "#"));
+    if (mine) return { source: "game", name: mine.championName };
+  } catch {}
+  try {
+    const creds = await clientCredentials();
+    if (creds) {
+      const id = await localJSON(`https://127.0.0.1:${creds.port}/lol-champ-select/v1/current-champion`, creds.password);
+      if (id) return { source: "champ-select", key: String(id) };
+      return { error: "You don't have a champion yet. Try again once you're assigned one." };
+    }
+  } catch {}
+  return { error: "League isn't in champion select or a game right now." };
+});
 
 // ---------- Forced updates (GitHub Releases) ----------
 // On launch: check, and if a newer version exists, download it, install it and restart before the

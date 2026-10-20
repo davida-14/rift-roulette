@@ -300,6 +300,7 @@ body.gb-open { overflow: hidden; }
       <span class="label">Options</span>
       <label class="toggle"><input type="checkbox" id="optBoots" checked> Boots</label>
       <label class="toggle"><input type="checkbox" id="optStarter" checked> Starter item</label>
+      <button class="ghost gamba-btn" id="detectBtn" type="button" hidden>Detect my champion</button>
       <button class="ghost gamba-btn" id="caseBtn" type="button" hidden>Open case</button>
       <button class="ghost gamba-btn" id="gambaBtn" type="button" hidden>Gamba</button>
       <button class="roll" id="rollBtn" type="button">Roll build</button>
@@ -328,6 +329,7 @@ body.gb-open { overflow: hidden; }
     <p class="note" id="note" hidden></p>
     <p class="gamba-note" id="gambaNote" hidden></p>
     <p class="gamba-note troll-note" id="trollNote" hidden></p>
+    <p class="gamba-note" id="detectNote" hidden></p>
     <div class="champ-card" id="champCard" hidden>
       <img id="ccImg" alt="">
       <div class="cc-text"><span class="cc-region" id="ccRegion"></span><b id="ccName"></b><small id="ccTitle"></small><small class="cc-timer" id="ccTimer"></small></div>
@@ -488,7 +490,8 @@ body.gb-open { overflow: hidden; }
   // range, role) and the build is drawn from the worst dozen. Without one: pure items from clashing camps.
   const TROLL = "FF15";
   let currentChamp = null, trollAnyway = false, pendingTroll = false;
-  const target = () => (M === MODES.sr ? currentChamp : null);   // ARAM champions are random, so no targeting there
+  let aramChamp = null;                                            // ARAM: the champion League says you're playing
+  const target = () => (M === MODES.sr ? currentChamp : aramChamp);
   function feats(it) {
     const has = re => it.stats.some(x => re.test(x));
     return { ad: has(/^\d+ Attack Damage$/), ap: has(/^\d+ Ability Power$/), as: has(/Attack Speed$/), crit: has(/Critical Strike Chance$/),
@@ -624,10 +627,13 @@ body.gb-open { overflow: hidden; }
     $("trollNote").hidden = !state.trollNote; $("trollNote").textContent = state.trollNote || "";
     const ch = target();
     $("champCard").hidden = !ch;
+    $("ccTimer").hidden = $("ccBar").hidden = M !== MODES.sr;          // only the case champion expires
+    $("ccReroll").title = $("ccReroll").ariaLabel = M === MODES.sr ? "Open the case again" : "Detect again";
+    $("detectNote").hidden = !state.detectNote; $("detectNote").textContent = state.detectNote || "";
     if (ch) {
       $("champCard").style.setProperty("--rar", tierOf(ch).color);
       $("ccImg").src = CH.icons[ch.id];
-      $("ccRegion").textContent = `Your champion · ${ch.region}`;
+      $("ccRegion").textContent = `${M === MODES.sr ? "Your champion" : "Playing"} \u00b7 ${ch.region}`;
       $("ccName").textContent = ch.name;
       $("ccTitle").textContent = `${ch.title} · ${ch.tags.join(" / ")}`;
     }
@@ -990,7 +996,7 @@ body.gb-open { overflow: hidden; }
   $("tpClose").onclick = closeTrollPrompt;
   $("trollPrompt").addEventListener("click", e => { if (e.target === $("trollPrompt")) closeTrollPrompt(); });
   document.addEventListener("keydown", e => { if (!$("trollPrompt").hidden && e.key === "Escape") closeTrollPrompt(); });
-  $("ccReroll").onclick = openCase;
+  $("ccReroll").onclick = () => (M === MODES.sr ? openCase() : detectChampion());
   // The case champion clears itself one minute after it's rolled (also across reloads).
   const CHAMP_TTL = 60000;
   let champAt = 0, champTimer = 0, champTick = 0;
@@ -1021,7 +1027,7 @@ body.gb-open { overflow: hidden; }
     bar.style.setProperty("--from", (left / CHAMP_TTL).toFixed(3));
     bar.style.animation = `ccdrain ${left}ms linear forwards`;
   }
-  $("ccClear").onclick = clearChamp;
+  $("ccClear").onclick = () => { if (M === MODES.sr) clearChamp(); else { aramChamp = null; state.detectNote = null; render(); } };
   {
     const saved = load("rr.champ", null), at = load("rr.champAt", 0);
     const c = CH.champs.find(x => x.id === saved);
@@ -1038,6 +1044,26 @@ body.gb-open { overflow: hidden; }
   window.RR_TROLL = { score: (id, champId) => trollScore(byId[id], CH.champs.find(c => c.id === champId)), feats: id => feats(byId[id]) };
   window.RR_CHAMP = { set: (id, at) => setChamp(CH.champs.find(c => c.id === id), at), clear: clearChamp, get current() { return currentChamp; } };
   window.RR_CASE = { spin: spinCase, open: openCase, close: closeCase, last: caseLast, tierOf, get spinning() { return caseSpinning; } };
+
+  // ---------- ARAM: detect the champion you're playing (desktop app only) ----------
+  async function detectChampion() {
+    const note = msg => { MODES.aram.state.detectNote = msg; render(); };
+    if (!window.riftDesktop) { note("Champion detection works in the Rift Roulette desktop app, which can read League's own data. A web page can't."); return; }
+    $("detectBtn").disabled = true; note("Looking for your champion\u2026");
+    try {
+      const r = await window.riftDesktop.detectChampion();
+      if (!r || r.error) { note(r ? r.error : "No answer from League."); return; }
+      const norm = t => String(t || "").toLowerCase().replace(/[^a-z]/g, "");
+      const c = r.key ? CH.champs.find(x => x.key === r.key)
+                      : CH.champs.find(x => norm(x.name) === norm(r.name) || norm(x.id) === norm(r.name));
+      if (!c) { note(`League says you're on ${r.name || "champion #" + r.key}, but this app's champion list doesn't have them yet.`); return; }
+      aramChamp = c;
+      note(`Detected from ${r.source === "game" ? "your game" : "champion select"}.`);
+      if (M === MODES.aram && state.style === TROLL) roll(true);       // FF15: re-aim at the new champion
+    } catch (e) { note("Couldn't reach League. Is it running?"); }
+    finally { $("detectBtn").disabled = false; }
+  }
+  $("detectBtn").onclick = detectChampion;
 
   // ---------- Augment picker (ARAM) ----------
   const AUG = ["left", "middle", "right"];
@@ -1083,6 +1109,7 @@ body.gb-open { overflow: hidden; }
     }
     $("roleRow").hidden = !M.roles;
     $("gambaBtn").hidden = id !== "aram";
+    $("detectBtn").hidden = id !== "aram";
     $("caseBtn").hidden = id !== "sr";
     $("augment").hidden = id !== "aram";
     if (M.roles) seg($("roleSeg"), M.roles, "role");
