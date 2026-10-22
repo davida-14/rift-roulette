@@ -442,7 +442,7 @@ html.compact .note, html.compact .gamba-note { font-size: 12px; margin: 2px 0 0;
       <div class="gb-head">
         <div>
           <h2 id="gbTitle">Gamba</h2>
-          <p>Beat the dealer and you choose your ARAM build type. Lose and the app chooses for you.</p>
+          <p>Beat the dealer and you choose your build type. Lose and the app chooses for you.</p>
         </div>
         <button type="button" class="icon-btn" id="gbClose" aria-label="Close Gamba" title="Close (Esc)"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
@@ -621,7 +621,7 @@ html.compact .note, html.compact .gamba-note { font-size: 12px; margin: 2px 0 0;
     if (!opts.length) { notes.add(`Every ${s.kind} item is banned. Unban one to fill that slot.`); s.id = null; return; }
     s.id = pick(opts);
     state.fresh.add(idx);
-    if (M === MODES.aram && s.id === "6699") eggPending = true;
+    if (s.id === "6699") eggPending = true;                 // Voltaic Cyclosword, on either tab
   }
 
   // `auto` rolls (page load, tab switch, toggles) never stop for the FF15 champion prompt; they roll untargeted instead.
@@ -741,7 +741,7 @@ html.compact .note, html.compact .gamba-note { font-size: 12px; margin: 2px 0 0;
     render(); $("status").textContent = "Build loaded";
   };
 
-  // ---------- Gamba: blackjack for the right to choose your ARAM build type ----------
+  // ---------- Gamba: blackjack for the right to choose your build type (both tabs) ----------
   // Six-deck shoe, dealer stands on all 17s, blackjack beats 21, hit / stand / double down.
   // House edge: each hand is secretly fated before the deal. The dealer is fated to win DEALER_EDGE
   // of hands, and only cards the player can't see are steered (the hole card, the dealer's draws,
@@ -923,7 +923,7 @@ html.compact .note, html.compact .gamba-note { font-size: 12px; margin: 2px 0 0;
   });
   window.RR_GAMBA = { G, DEALER_EDGE, handValue, gHit, gStand, gDouble, gDeal, rig: cards => { if (shoe.length < 78 + cards.length) newShoe(); shoe = shoe.concat(cards.slice().reverse()); } };
 
-  // ---------- Easter egg: Voltaic Cyclosword in ARAM ----------
+  // ---------- Easter egg: Voltaic Cyclosword ----------
   let eggPending = false, eggCount = 0, boomAudio = null;
   const VINE_BOOM = "/*VINE_BOOM*/";          // filled in at build time with the audio file as a data URI
   function voltaicEgg() {
@@ -1157,7 +1157,7 @@ html.compact .note, html.compact .gamba-note { font-size: 12px; margin: 2px 0 0;
       btn.setAttribute("aria-selected", k === id); btn.tabIndex = k === id ? 0 : -1;
     }
     $("roleRow").hidden = !M.roles;
-    $("gambaBtn").hidden = id !== "aram";
+    $("gambaBtn").hidden = false;
     $("detectBtn").hidden = id !== "aram";
     $("caseBtn").hidden = id !== "sr";
     $("augment").hidden = id !== "aram";
